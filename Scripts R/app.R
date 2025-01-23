@@ -15,9 +15,9 @@ ui <- fluidPage(
   # Module 1 : Landing page (toujours visible)
   mod_landing_page_ui("landing_page"),
   
-  # Module 2 : Indicateur (visible après la sélection d'un pays)
+  # Module 2 : Indicateur (visible après la sélection d'un pays & indicateur)
   conditionalPanel(
-    condition = "input['landing_page-country'] !== ''&& input['landing_page-indicator'] !== ''",
+    condition = "input['landing_page-country'] !== '' && input['landing_page-indicator'] !== ''",
     mod_indicator_page_ui("indicator_page")
   ),
   
@@ -47,7 +47,7 @@ server <- function(input, output, session) {
   # 4) State filter page
   mod_state_filter_page_server("state_filter_page", landing_vals, indicator_chosen)
   
-  # Synchronisation de l'indicateur choisi
+  # Synchronisation JS (optionnel)
   observe({
     chosen_bool <- tolower(as.character(indicator_chosen()))
     runjs(sprintf("Shiny.setInputValue('%s', %s)", "indicator_chosen", chosen_bool))

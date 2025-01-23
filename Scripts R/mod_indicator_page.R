@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# mod_indicator_page.R
+# Module 2 : Affichage de l'indicateur sélectionné (méthodologie, description)
+# ─────────────────────────────────────────────────────────────────────────────
+
 mod_indicator_page_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
@@ -12,10 +17,10 @@ mod_indicator_page_ui <- function(id) {
             class = "red-title-box",
             textOutput(ns("indicator_title"))
           ),
-          # Boîte contenant la description de l'indicateur
+          # Boîte contenant la description de l'indicateur (dynamique)
           div(
             class = "dark-box",
-            uiOutput(ns("indicator_description"))
+            uiOutput(ns("indicator_desc"))  # On met ici un uiOutput
           )
         )
       )
@@ -30,7 +35,7 @@ mod_indicator_page_server <- function(id, landing_inputs) {
       landing_inputs()
     })
     
-    # Mettre à jour le titre de l'indicateur
+    # Mettre à jour le titre de l'indicateur (zone rouge)
     output$indicator_title <- renderText({
       if (data_reac()$indicator == "") {
         return("") # Ne rien afficher si aucun indicateur n'est sélectionné
@@ -39,9 +44,12 @@ mod_indicator_page_server <- function(id, landing_inputs) {
       }
     })
     
-    # Mettre à jour la description de l'indicateur dynamiquement
-    output$indicator_description <- renderUI({
-      if (data_reac()$indicator == "Taux moyen de Paludisme") {
+    # Affichage dynamique : méthodologie + description
+    output$indicator_desc <- renderUI({
+      req(data_reac()$indicator)
+      indic <- data_reac()$indicator
+      
+      if (indic == "Taux moyen de Paludisme") {
         tagList(
           p("Cet indicateur correspond à la moyenne des valeurs d'incidence du paludisme ",
             "calculées à partir de rasters couvrant l'ensemble du territoire Sénégalais. ",
@@ -53,19 +61,22 @@ mod_indicator_page_server <- function(id, landing_inputs) {
           p("Les données sources (rasters, shapefiles) proviennent d'analyses spatiales ",
             "réalisées au Sénégal.")
         )
-      } else if (data_reac()$indicator == "Taux d'enfants atteints par la malaria") {
+      } else if (indic == "Taux d'enfant atteint par la malaria") {
         tagList(
-          p("Cet indicateur représente le pourcentage d'enfants âgés de 0 à 12 ans ",
-            "atteints par la malaria, calculé en appliquant un taux d'infection ",
-            "à la population d'enfants estimée à partir des rasters de population."),
-          p("La méthodologie utilise les rasters de population et un taux fixe ",
-            "d'incidence pour estimer le nombre d'enfants malades. Les résultats ",
-            "sont agrégés par région, département et commune."),
-          p("Les données sources incluent les rasters de population et d'incidence ",
-            "de la malaria, ainsi que les shapefiles des limites administratives.")
+          p("Cet indicateur correspond à la proportion (ou pourcentage) d'enfants (0 à 12 ans) ",
+            "touchés par la malaria dans une zone géographique donnée (région, département, commune). ",
+            "Il s'agit du ratio entre le nombre d'enfants malades et le nombre total d'enfants."),
+          p("Méthodologie : à partir d'un raster représentant la population enfantine et d'un ",
+            "raster de prévalence de la malaria, nous calculons le nombre d'enfants infectés ",
+            "et le rapportons à la population totale. L'agrégation par entité administrative ",
+            "se fait via 'exact_extract()', puis nous stockons le résultat dans la colonne ",
+            "'taux_malaria'.")
         )
       } else {
-        p("Aucune description disponible pour cet indicateur.")
+        # Au cas où un autre indicateur serait ajouté plus tard
+        tagList(
+          p("Indicateur non documenté.")
+        )
       }
     })
     

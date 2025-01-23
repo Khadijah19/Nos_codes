@@ -1,42 +1,38 @@
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # mod_landing_page.R
-# Module 1 : Page d'accueil, liste déroulante (Sénégal), indicateurs multiples
-# ────────────────────────────────────────────────────────────────────────────
+# Module 1 : Page d'accueil, liste déroulante (Sénégal), indicateurs
+# ─────────────────────────────────────────────────────────────────────────────
 
 mod_landing_page_ui <- function(id) {
   ns <- NS(id)
-  
   fluidPage(
-    # En-tête avec style CSS
-    tags$head(
-      tags$style(
-        HTML("
-          body {
-            background-color: #f2f2f2;
-          }
-          .dark-box {
-            background-color: #666666;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-          }
-          .red-title-box {
-            background-color: #cc0000;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-bottom: 10px;
-          }
-        ")
-      )
-    ),
+    tags$head(tags$style(
+      HTML("
+        body {
+          background-color: #f2f2f2;
+        }
+        .dark-box {
+          background-color: #666666;
+          color: white;
+          padding: 15px;
+          border-radius: 5px;
+          margin-bottom: 20px;
+        }
+        .red-title-box {
+          background-color: #cc0000;
+          color: white;
+          padding: 10px;
+          border-radius: 5px;
+          font-weight: bold;
+          margin-bottom: 10px;
+        }
+      ")
+    )),
     
     # Titre principal
     titlePanel("Cartographie infranationale des indicateurs de santé et de développement infantiles et maternels dans certains pays"),
     
-    # Zone de texte sombre (on conserve la description intacte)
+    # Zone de texte sombre (description)
     div(
       class = "dark-box",
       p("Cette application web présente un résumé des indicateurs de santé et de développement ",
@@ -50,21 +46,14 @@ mod_landing_page_ui <- function(id) {
     ),
     
     # Sélection du pays => ici "Sénégal" uniquement
-    selectInput(
-      inputId = ns("country"),
-      label = "Sélectionnez un pays :",
-      choices = c("", fake_countries),  # 'fake_countries' doit être défini dans l'environnement global
-      selected = ""
-    ),
+    selectInput(ns("country"), "Sélectionnez un pays :",
+                choices = c("", fake_countries),
+                selected = ""),
     
-    # Sélection de l'indicateur avec plusieurs choix disponibles
+    # Sélection de l'indicateur => maintenant 2 possibilités
     conditionalPanel(
       condition = sprintf("input['%s'] != ''", ns("country")),
-      selectInput(
-        inputId = ns("indicator"),
-        label = "Sélectionnez un indicateur :",
-        choices = NULL
-      )
+      selectInput(ns("indicator"), "Sélectionnez un indicateur :", choices = NULL)
     )
   )
 }
@@ -76,21 +65,11 @@ mod_landing_page_server <- function(id) {
     observeEvent(input$country, {
       req(input$country)
       country_selected <- input$country
-      
-      # Récupère la liste d'indicateurs dans 'fake_indicators'
-      # 'fake_indicators' doit être défini dans l'environnement global
       indics <- fake_indicators[[country_selected]]
-      
-      # Met à jour le second selectInput
-      updateSelectInput(
-        session = session,
-        inputId = "indicator",
-        choices = c("", indics),
-        selected = ""
-      )
+      updateSelectInput(session, "indicator", choices = c("", indics), selected = "")
     })
     
-    # Retourne le pays + l'indicateur sélectionné
+    # Retourne le pays + indicateur
     return(
       reactive({
         list(
