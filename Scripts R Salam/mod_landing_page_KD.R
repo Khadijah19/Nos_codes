@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# mod_landing_page.R
-# Module 1 : Page d'accueil, liste déroulante (Sénégal), indicateurs
+# mod_landing_page_KD.R
+# Page d'accueil, liste déroulante multi-pays, puis indicateurs
 # ─────────────────────────────────────────────────────────────────────────────
 
 mod_landing_page_ui <- function(id) {
@@ -30,30 +30,29 @@ mod_landing_page_ui <- function(id) {
     )),
     
     # Titre principal
-    titlePanel("Cartographie infranationale des indicateurs de santé et de développement infantiles et maternels dans certains pays"),
+    titlePanel("Cartographie infranationale des indicateurs de santé et de développement"),
     
     # Zone de texte sombre (description)
     div(
       class = "dark-box",
-      p("Cette application web présente un résumé des indicateurs de santé et de développement ",
-        "infantiles et maternels calculés au niveau infranational (zones géographiques situées ",
-        "sous le niveau national) pour une sélection de pays."),
-      p("Plusieurs indicateurs sont présentés sous forme de cartes, de graphiques et de tableaux, ",
-        "et pour plusieurs points dans le temps selon la disponibilité des données. Les changements ",
-        "au fil du temps pour chaque indicateur sont également présentés."),
-      p("Veuillez consulter le Guide et la section À propos pour plus d'informations sur la manière ",
-        "d'utiliser ce portail.")
+      p("Cette application web fournit une analyse détaillée des indicateurs de santé publique ",
+        "et de développement à l'échelle infranationale, en mettant l'accent sur des données ",
+        "socio-économiques et environnementales. Plusieurs indicateurs sont visualisés ",
+        "sous forme de cartes interactives, de graphiques explicatifs et de tableaux ",
+        "synthétiques, couvrant plusieurs périodes et intégrant différentes sources de données."),
+      p("Veuillez consulter le Guide et la section About pour plus d'informations ",
+        "sur l'utilisation de ce portail.")
     ),
     
-    # Sélection du pays => ici "Sénégal" uniquement
+    # Sélection du pays
     selectInput(ns("country"), "Sélectionnez un pays :",
-                choices = c("", fake_countries),
+                choices = c("", "Senegal", "Burkina"),
                 selected = ""),
     
-    # Sélection de l'indicateur => maintenant 2 possibilités
+    # Sélection de l'indicateur
     conditionalPanel(
       condition = sprintf("input['%s'] != ''", ns("country")),
-      selectInput(ns("indicator"), "Sélectionnez un indicateur :", choices = NULL)
+      selectInput(ns("indicator_chosen"), "Sélectionnez un indicateur :", choices = NULL)
     )
   )
 }
@@ -61,20 +60,27 @@ mod_landing_page_ui <- function(id) {
 mod_landing_page_server <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    # Met à jour la liste d'indicateurs si le pays est choisi
+    # Met à jour la liste d'indicateurs en fonction du pays choisi
     observeEvent(input$country, {
       req(input$country)
       country_selected <- input$country
       indics <- fake_indicators[[country_selected]]
-      updateSelectInput(session, "indicator", choices = c("", indics), selected = "")
+      updateSelectInput(session, "indicator_chosen",
+                        choices = c("", indics),
+                        selected = "")
+      
+      # Mise à jour des data_global via la fonction (on recharge les shapefiles/rasters)
+      if (country_selected != "") {
+        update_data_global(country_selected)
+      }
     })
     
-    # Retourne le pays + indicateur
+    # Retourne le pays et l'indicateur sélectionné
     return(
       reactive({
         list(
           country = input$country,
-          indicator = input$indicator
+          indicator_chosen = input$indicator_chosen
         )
       })
     )

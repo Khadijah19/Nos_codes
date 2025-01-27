@@ -1,32 +1,34 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# mod_state_filter_page.R
+# mod_state_filter_page_KD.R
 # Module 4 : Sélection d’une Région, puis onglets Résumé, Tableau, Graphique
-# + Téléchargements CSV / PNG
+# + Téléchargements
 # ─────────────────────────────────────────────────────────────────────────────
 
 mod_state_filter_page_ui <- function(id){
   ns <- NS(id)
   fluidPage(
+    # Le module n’apparaît que si le pays ET l’indicateur sont sélectionnés
     conditionalPanel(
-      condition = sprintf("input['landing_page-country'] !== '' && input['landing_page-indicator'] !== ''"),
+      condition = sprintf("input['landing_page-country'] !== '' && input['landing_page-indicator_chosen'] !== ''"),
       
       fluidRow(
         column(
           width = 3,
-          # Liste dynamique des régions (en supposant la colonne "ADM1_FR")
+          # Liste dynamique des régions (on mettra à jour dans le server)
           selectInput(ns("region"), "Sélectionnez une Région :",
-                      choices = c("", sort(unique(regions$ADM1_FR)))),
+                      choices = c("")),
           
           selectInput(ns("signif"), "Filtrer par Significativité (ou seuil) :",
                       choices = c("Afficher tout", "Moins de 0.3", "0.3 à 0.6", "Plus de 0.6")),
           
           helpText("Les données affichées peuvent être filtrées selon la fourchette de valeurs.")
         ),
+        
         column(
           width = 9,
+          # Afficher la suite uniquement si on a choisi une région
           conditionalPanel(
             condition = sprintf("input['%s'] != ''", ns("region")),
-            
             div(
               class = "dark-box",
               div(
@@ -42,68 +44,42 @@ mod_state_filter_page_ui <- function(id){
             ),
             
             tabsetPanel(
-              
-              # ─────────────────────────────────────────
-              # Onglet Résumé
-              # ─────────────────────────────────────────
+              # --- Onglet Résumé ---
               tabPanel(
                 title = "Résumé",
                 br(),
-                # Ajout du bouton de téléchargement CSV pour le tableau de résumé
-                downloadButton(ns("dl_resume_table"), "Télécharger le résumé (CSV)"),
-                br(), br(),
+                # Bouton de téléchargement pour le tableau résumé
+                downloadButton(ns("download_resume_table"), "Télécharger le résumé (CSV)"),
                 tableOutput(ns("resume_table")),
                 hr(),
                 textOutput(ns("resume_comment"))
               ),
               
-              # ─────────────────────────────────────────
-              # Onglet Tableau
-              # ─────────────────────────────────────────
+              # --- Onglet Tableau ---
               tabPanel(
                 title = "Tableau",
                 br(),
-                fluidRow(
-                  column(
-                    width = 6,
-                    h4("Tableau des Départements"),
-                    downloadButton(ns("dl_dep_table"), "Télécharger (CSV)"),
-                    tableOutput(ns("dep_table"))
-                  ),
-                  column(
-                    width = 6,
-                    h4("Tableau des Communes"),
-                    downloadButton(ns("dl_com_table"), "Télécharger (CSV)"),
-                    tableOutput(ns("com_table"))
-                  )
-                ),
+                h4("Tableau des Départements"),
+                downloadButton(ns("download_dep_table"), "Télécharger (CSV)"),
+                tableOutput(ns("dep_table")),
+                
+                h4("Tableau des Communes"),
+                downloadButton(ns("download_com_table"), "Télécharger (CSV)"),
+                tableOutput(ns("com_table")),
+                
                 hr(),
                 textOutput(ns("table_comment"))
               ),
               
-              # ─────────────────────────────────────────
-              # Onglet Graphique
-              # ─────────────────────────────────────────
+              # --- Onglet Graphique ---
               tabPanel(
                 title = "Graphique",
                 br(),
-                fluidRow(
-                  column(
-                    width = 6,
-                    h4("Graphique par Département"),
-                    # Bouton pour télécharger le plot
-                    downloadButton(ns("dl_dep_plot"), "Télécharger (PNG)"),
-                    plotOutput(ns("dep_plot"), height = "300px")
-                  ),
-                  column(
-                    width = 6,
-                    h4("Graphique par Commune"),
-                    downloadButton(ns("dl_com_plot"), "Télécharger (PNG)"),
-                    plotOutput(ns("com_plot"), height = "300px")
-                  )
-                ),
-                hr(),
-                textOutput(ns("graph_comment"))
+                plotOutput(ns("dep_plot"), height = "300px"),
+                downloadButton(ns("download_dep_plot"), "Télécharger Graphique Départements (PNG)"),
+                
+                plotOutput(ns("com_plot"), height = "300px"),
+                downloadButton(ns("download_com_plot"), "Télécharger Graphique Communes (PNG)")
               )
             )
           )
@@ -113,45 +89,65 @@ mod_state_filter_page_ui <- function(id){
   )
 }
 
-mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
-  moduleServer(id, function(input, output, session){
+mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) {
+  moduleServer(id, function(input, output, session) {
     
     data_reac <- reactive({ landing_inputs() })
     
-    # Titre indicateur
-    output$selected_indicator_title <- renderText({
-      req(data_reac()$indicator != "")
-      paste("Indicateur sélectionné :", data_reac()$indicator)
+    # 1) Mettre à jour la liste de régions dès que data_global$regions est modifié (multi-pays)
+    observeEvent(data_global$regions, {
+      req(data_global$regions)
+      region_choices <- sort(unique(data_global$regions$ADM1_FR))
+      updateSelectInput(
+        session, "region",
+        choices = c("", region_choices),
+        selected = ""
+      )
     })
     
-    # Titre région
+    # 2) Titres
+    output$selected_indicator_title <- renderText({
+      req(data_reac()$indicator_chosen)
+      paste("Indicateur sélectionné :", data_reac()$indicator_chosen)
+    })
+    
     output$selected_region_title <- renderText({
-      req(input$region != "")
+      req(input$region)
       paste("Région sélectionnée :", input$region)
     })
     
-    # Fonction interne pour gérer la fourchette
-    getRange <- function(signif_str){
+    # 3) Fonction pour la fourchette
+    getRange <- function(signif_str) {
       if (signif_str == "Moins de 0.3") return(c(-Inf, 0.3))
       if (signif_str == "0.3 à 0.6")   return(c(0.3, 0.6))
       if (signif_str == "Plus de 0.6") return(c(0.6, Inf))
-      return(c(-Inf, Inf))  # "Afficher tout"
+      c(-Inf, Inf)  # Par défaut
     }
     
-    # Reactive pour connaître la colonne de l'indicateur
+    # 4) Colonne selon l’indicateur
     chosen_col <- reactive({
-      if (data_reac()$indicator == "Taux moyen de Paludisme") {
-        "mean_index"
-      } else {
-        "taux_malaria"
+      switch(
+        data_reac()$indicator_chosen,
+        "Taux moyen de Paludisme"          = "mean_index",
+        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
+        "NDVI"                             = "mean_ndvi",
+        NULL
+      )
+    })
+    
+    validate_chosen_col <- reactive({
+      if (is.null(chosen_col())) {
+        showNotification("Aucun indicateur valide n'est sélectionné.", type = "error")
+        stop("Colonne choisie NULL.")
       }
+      chosen_col()
     })
     
-    # Reactive pour subsetter départements
+    # 5) Filtrage
     deps_filtered <- reactive({
-      req(input$region != "")
+      req(input$region, validate_chosen_col())
       minmax <- getRange(input$signif)
-      departments %>% 
+      data_global$departments %>%
         filter(
           ADM1_FR == input$region,
           .data[[chosen_col()]] >= minmax[1],
@@ -159,11 +155,10 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
         )
     })
     
-    # Reactive pour subsetter communes
     coms_filtered <- reactive({
-      req(input$region != "")
+      req(input$region, validate_chosen_col())
       minmax <- getRange(input$signif)
-      communes %>% 
+      data_global$communes %>%
         filter(
           ADM1_FR == input$region,
           .data[[chosen_col()]] >= minmax[1],
@@ -171,77 +166,67 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
         )
     })
     
-    # ─────────────────────────────────────────
-    # Onglet "Résumé" : Tableau + Download
-    # ─────────────────────────────────────────
-    # On encapsule le calcul du tableau résumé dans une reactive
+    # 6) Tableau Résumé
     summary_table_reactive <- reactive({
-      req(input$region != "")
+      req(input$region, validate_chosen_col())
       
       dep_vals <- deps_filtered()[[chosen_col()]]
       com_vals <- coms_filtered()[[chosen_col()]]
       
-      # Valeur unique de la région
-      reg_val <- regions %>% 
-        filter(ADM1_FR == input$region) %>% 
+      reg_val <- data_global$regions %>%
+        filter(ADM1_FR == input$region) %>%
         pull(chosen_col())
       
-      # Construction du tableau (data.frame)
-      df <- data.frame(
+      data.frame(
         row.names = c("Moyenne", "Maximum", "Minimum"),
-        "Région" = c(
-          round(mean(reg_val), 3),
-          round(max(reg_val), 3),
-          round(min(reg_val), 3)
+        "Région"      = c(
+          round(mean(reg_val, na.rm = TRUE), 3),
+          round(max(reg_val, na.rm = TRUE), 3),
+          round(min(reg_val, na.rm = TRUE), 3)
         ),
         "Département" = c(
-          round(mean(dep_vals), 3),
-          round(max(dep_vals), 3),
-          round(min(dep_vals), 3)
+          round(mean(dep_vals, na.rm = TRUE), 3),
+          round(max(dep_vals, na.rm = TRUE), 3),
+          round(min(dep_vals, na.rm = TRUE), 3)
         ),
-        "Commune" = c(
-          round(mean(com_vals), 3),
-          round(max(com_vals), 3),
-          round(min(com_vals), 3)
+        "Commune"     = c(
+          round(mean(com_vals, na.rm = TRUE), 3),
+          round(max(com_vals, na.rm = TRUE), 3),
+          round(min(com_vals, na.rm = TRUE), 3)
         )
       )
-      df
     })
     
-    # Affichage du tableau résumé
     output$resume_table <- renderTable({
       summary_table_reactive()
     }, rownames = TRUE)
     
     output$resume_comment <- renderText({
-      "Interprétation : Le tableau ci-dessus montre la moyenne, le min et le max pour la région sélectionnée, 
-       ainsi que pour les départements et les communes qui la composent (selon la fourchette de filtrage)."
+      "Interprétation : ce tableau compare la valeur régionale et les valeurs des départements/communes filtrés."
     })
     
-    # Bouton de téléchargement du résumé (CSV)
-    output$dl_resume_table <- downloadHandler(
+    # *** Téléchargement du tableau Résumé ***
+    output$download_resume_table <- downloadHandler(
       filename = function(){
-        paste0("resume_table_", gsub(" ", "_", input$region), "_", Sys.Date(), ".csv")
+        paste0("resume_table_", input$region, "_", Sys.Date(), ".csv")
       },
       content = function(file){
         write.csv(summary_table_reactive(), file, row.names = TRUE)
       }
     )
     
-    # ─────────────────────────────────────────
-    # Onglet "Tableau" : Départements / Communes + Download
-    # ─────────────────────────────────────────
-    dep_table_reactive <- reactive({
-      req(input$region != "")
+    # 7) Tableaux départements / communes
+    output$dep_table <- renderTable({
+      req(input$region, validate_chosen_col())
       df <- deps_filtered()
       data.frame(
-        Departement = df$ADM2_FR,
+        Département = df$ADM2_FR,
         Taux = round(df[[chosen_col()]], 3)
       )
     })
     
-    com_table_reactive <- reactive({
-      req(input$region != "")
+    output$com_table <- renderTable({
+      req(input$region, validate_chosen_col())
       df <- coms_filtered()
       data.frame(
         Commune = df$ADM3_FR,
@@ -249,104 +234,86 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
       )
     })
     
-    output$dep_table <- renderTable({
-      dep_table_reactive()
-    })
-    
-    output$com_table <- renderTable({
-      com_table_reactive()
-    })
-    
     output$table_comment <- renderText({
-      "Interprétation : Ce tableau liste les Départements et Communes (filtrés selon la fourchette de significativité) 
-       et leurs valeurs pour l'indicateur choisi."
+      "Tableaux listant les départements et communes respectant le filtre choisi."
     })
     
-    # Téléchargement CSV Département
-    output$dl_dep_table <- downloadHandler(
+    # Téléchargements CSV pour Départements / Communes
+    output$download_dep_table <- downloadHandler(
       filename = function(){
-        paste0("departements_", gsub(" ", "_", input$region), "_", Sys.Date(), ".csv")
+        paste0("departements_", input$region, "_", Sys.Date(), ".csv")
       },
       content = function(file){
-        write.csv(dep_table_reactive(), file, row.names = FALSE)
+        write.csv(deps_filtered(), file, row.names = FALSE)
+      }
+    )
+    output$download_com_table <- downloadHandler(
+      filename = function(){
+        paste0("communes_", input$region, "_", Sys.Date(), ".csv")
+      },
+      content = function(file){
+        write.csv(coms_filtered(), file, row.names = FALSE)
       }
     )
     
-    # Téléchargement CSV Commune
-    output$dl_com_table <- downloadHandler(
-      filename = function(){
-        paste0("communes_", gsub(" ", "_", input$region), "_", Sys.Date(), ".csv")
-      },
-      content = function(file){
-        write.csv(com_table_reactive(), file, row.names = FALSE)
-      }
-    )
-    
-    # ─────────────────────────────────────────
-    # Onglet "Graphique" : Département / Commune + Download
-    # ─────────────────────────────────────────
-    dep_plot_reactive <- reactive({
-      req(input$region != "")
+    # 8) Graphiques Départements / Communes
+    output$dep_plot <- renderPlot({
+      req(input$region, validate_chosen_col())
       df <- deps_filtered()
       ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]], group = 1)) +
         geom_line(color = "blue") +
         geom_point(color = "blue", size = 2) +
         theme_minimal() +
-        labs(title = "Taux par Département", x = "Département", y = "Valeur de l'indicateur") +
+        labs(title = "Taux par Département", x = "Département", y = "Valeur") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     })
     
-    com_plot_reactive <- reactive({
-      req(input$region != "")
+    output$com_plot <- renderPlot({
+      req(input$region, validate_chosen_col())
       df <- coms_filtered()
       ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]], group = 1)) +
         geom_line(color = "red") +
         geom_point(color = "red", size = 2) +
         theme_minimal() +
-        labs(title = "Taux par Commune", x = "Commune", y = "Valeur de l'indicateur") +
+        labs(title = "Taux par Commune", x = "Commune", y = "Valeur") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     })
     
-    output$dep_plot <- renderPlot({
-      dep_plot_reactive()
-    })
-    
-    output$com_plot <- renderPlot({
-      com_plot_reactive()
-    })
-    
-    output$graph_comment <- renderText({
-      "Interprétation : Les graphiques ci-dessus illustrent la valeur de l'indicateur 
-       dans les départements et communes (filtrés) de la région sélectionnée."
-    })
-    
-    # Téléchargement du plot Départements (PNG)
-    output$dl_dep_plot <- downloadHandler(
-      filename = function(){
-        paste0("plot_departements_", gsub(" ", "_", input$region), "_", Sys.Date(), ".png")
+    # Téléchargements PNG pour Départements / Communes
+    output$download_dep_plot <- downloadHandler(
+      filename = function() {
+        paste0("graphique_departements_", input$region, "_", Sys.Date(), ".png")
       },
-      content = function(file){
-        ggsave(
-          filename = file,
-          plot = dep_plot_reactive(), 
-          device = "png", width = 8, height = 5
-        )
+      content = function(file) {
+        df <- deps_filtered()
+        p <- ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]])) +
+          geom_line(color = "blue") +
+          geom_point(color = "blue") +
+          theme_minimal() +
+          labs(title = "Graphique par Département", x = "Département", y = "Valeur")
+        
+        ggsave(file, plot = p, device = "png", width = 10, height = 6)
       }
     )
     
-    # Téléchargement du plot Communes (PNG)
-    output$dl_com_plot <- downloadHandler(
-      filename = function(){
-        paste0("plot_communes_", gsub(" ", "_", input$region), "_", Sys.Date(), ".png")
+    output$download_com_plot <- downloadHandler(
+      filename = function() {
+        paste0("graphique_communes_", input$region, "_", Sys.Date(), ".png")
       },
-      content = function(file){
-        ggsave(
-          filename = file,
-          plot = com_plot_reactive(),
-          device = "png", width = 8, height = 5
-        )
+      content = function(file) {
+        df <- coms_filtered()
+        p <- ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]])) +
+          geom_line(color = "red") +
+          geom_point(color = "red") +
+          theme_minimal() +
+          labs(title = "Graphique par Commune", x = "Commune", y = "Valeur")
+        
+        ggsave(file, plot = p, device = "png", width = 10, height = 6)
       }
     )
     
   })
 }
+
+
+

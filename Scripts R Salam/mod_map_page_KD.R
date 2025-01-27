@@ -1,14 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# mod_map_page.R
-# Module 3 : Carte interactive. RadioButtons Région/Département/Commune
+# mod_map_page_KD.R
+# Module 3 : Carte interactive
+# RadioButtons (Région, Département, Commune, Grid)
 # ─────────────────────────────────────────────────────────────────────────────
 
-mod_map_page_ui <- function(id){
+mod_map_page_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
     conditionalPanel(
-      condition = sprintf("input['%s-country'] !== '' && input['%s-indicator'] !== ''", ns(""), ns("")),
-      
+      condition = sprintf("input['%s-country'] !== '' && input['%s-indicator_chosen'] !== ''", ns(""), ns("")),
       fluidRow(
         column(
           width = 12,
@@ -18,24 +18,15 @@ mod_map_page_ui <- function(id){
               class = "red-title-box",
               textOutput(ns("map_indicator_title"))
             ),
-            # Définition structurée (exemple)
-            div(
-              style = "margin: 10px; font-size: 18px; font-weight: bold;",
-              "Définition : Sélectionnez ci-dessous le niveau administratif pour visualiser l'indicateur."
-            ),
             div(
               style = "margin: 10px; font-size: 14px;",
-              "Selon l'indicateur choisi, la carte affichera soit le Taux moyen de Paludisme, ",
-              "soit le Taux d'enfant atteint par la malaria (agrégation par entité administrative)."
+              "Selon l'indicateur choisi, la carte peut afficher un agrégat par entité administrative ",
+              "(Région, Département, Commune) ou le raster brut (Grid)."
             ),
-            
-            # RadioButtons pour niveau administratif
             radioButtons(ns("admin_level"), "Niveau Administratif :",
-                         choices = c("Région", "Département", "Commune"),
+                         choices = c("Région", "Département", "Commune", "Grid"),
                          selected = "Région",
                          inline = TRUE),
-            
-            # Carte Leaflet
             leafletOutput(ns("map"), width = "90%", height = "500px"),
             br(),
             actionButton(ns("btn_fullscreen"), "Agrandir la carte")
@@ -46,143 +37,201 @@ mod_map_page_ui <- function(id){
   )
 }
 
-mod_map_page_server <- function(id, landing_inputs, indicator_chosen){
-  moduleServer(id, function(input, output, session){
+mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
+  moduleServer(id, function(input, output, session) {
     
     data_reac <- reactive({
+      req(landing_inputs())
       landing_inputs()
     })
     
-    # Mise à jour du titre de la carte
+    # Titre
     output$map_indicator_title <- renderText({
-      req(data_reac()$indicator != "")
-      paste0("Carte interactive du Sénégal : ", data_reac()$indicator)
+      req(data_reac()$indicator_chosen)
+      paste0("Carte : ", data_reac()$indicator_chosen)
     })
     
     output$map <- renderLeaflet({
-      req(data_reac()$indicator != "")
+      req(data_reac()$indicator_chosen)
       
-      # 1) Choisir la colonne de données en fonction de l'indicateur
-      chosen_col <- if (data_reac()$indicator == "Taux moyen de Paludisme") {
-        "mean_index"
+      # Déterminer la colonne ou le raster en fonction de l'indicateur
+      indic <- data_reac()$indicator_chosen
+      
+      chosen_col <- switch(
+        indic,
+        "Taux moyen de Paludisme" = "mean_index",
+        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
+        "NDVI" = "mean_ndvi",
+        NULL
+      )
+      
+      # Mode Grid => affichage du raster correspondant
+      if (input$admin_level == "Grid") {
+        
+        raster_layer <- switch(
+          indic,
+          "Taux moyen de Paludisme" = data_global$mean_raster,
+          "Taux de malaria chez les enfants" = {
+            # Ex. ratio raster_malaria / raster_pop
+            if (is.null(data_global$raster_nombre_malaria_enfants) ||
+                is.null(data_global$raster_pop_enfants)) {
+              NULL
+            } else {
+              data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants
+            }
+          },
+          "NDVI" = data_global$ndvi_raster,
+          NULL
+        )
+        
+        req(raster_layer)
+        
+        pal_r <- colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE))
+        
+        leaflet() %>%
+          addTiles() %>%
+          addRasterImage(raster_layer, colors = pal_r, opacity = 0.8) %>%
+          addLegend(
+            pal = pal_r,
+            values = values(raster_layer),
+            title = indic
+          )
+        
       } else {
-        "taux_malaria"
+        # Mode agrégé (Région/Département/Commune)
+        req(chosen_col)
+        
+        # On récupère le bon sf
+        sf_data <- switch(
+          input$admin_level,
+          "Région" = data_global$regions,
+          "Département" = data_global$departments,
+          "Commune" = data_global$communes
+        )
+        
+        req(sf_data)
+        
+        pal <- colorNumeric("viridis", domain = range(sf_data[[chosen_col]], na.rm = TRUE))
+        
+        # Déterminer le champ de nom pour l’info popup
+        name_col <- switch(
+          input$admin_level,
+          "Région" = "ADM1_FR",
+          "Département" = "ADM2_FR",
+          "Commune" = "ADM3_FR"
+        )
+        
+        leaflet(sf_data) %>%
+          addTiles() %>%
+          addPolygons(
+            fillColor = ~ pal(get(chosen_col)),
+            fillOpacity = 0.7,
+            color = "white",
+            weight = 2,
+            popup = ~ paste0(input$admin_level, " : ", get(name_col),
+                             "<br>Valeur : ", round(get(chosen_col), 3))
+          ) %>%
+          addLegend(
+            "bottomright",
+            pal = pal,
+            values = sf_data[[chosen_col]],
+            title = paste(indic, "(", input$admin_level, ")")
+          )
       }
       
-      # 2) Palette viridis
-      # On définit un domaine en fusionnant les valeurs, si besoin
-      # (Ici, on applique domain = NULL, ce qui s'adapte aux données chargées)
-      pal <- colorNumeric("viridis", domain = NULL, na.color = "grey50")
-      
-      # 3) En fonction du niveau administratif
-      if (input$admin_level == "Région") {
-        leaflet(regions) %>%
-          addTiles() %>%
-          addPolygons(
-            fillColor = ~pal(get(chosen_col)),
-            fillOpacity = 0.7,
-            color = "white",
-            weight = 2,
-            popup = ~paste0("Région : ", ADM1_FR, 
-                            "<br>Taux : ", round(get(chosen_col), 3))
-          ) %>%
-          addLegend("bottomright", pal = pal, values = regions[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Région)"))
-        
-      } else if (input$admin_level == "Département") {
-        leaflet(departments) %>%
-          addTiles() %>%
-          addPolygons(
-            fillColor = ~pal(get(chosen_col)),
-            fillOpacity = 0.7,
-            color = "white",
-            weight = 2,
-            popup = ~paste0("Département : ", ADM2_FR,
-                            "<br>Taux : ", round(get(chosen_col), 3))
-          ) %>%
-          addLegend("bottomright", pal = pal, values = departments[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Dépt)"))
-        
-      } else {
-        leaflet(communes) %>%
-          addTiles() %>%
-          addPolygons(
-            fillColor = ~pal(get(chosen_col)),
-            fillOpacity = 0.7,
-            color = "white",
-            weight = 2,
-            popup = ~paste0("Commune : ", ADM3_FR,
-                            "<br>Taux : ", round(get(chosen_col), 3))
-          ) %>%
-          addLegend("bottomright", pal = pal, values = communes[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Commune)"))
-      }
     })
     
-    # Bouton pour afficher la carte en plein écran (modal)
+    # Plein écran (modal)
     observeEvent(input$btn_fullscreen, {
       showModal(modalDialog(
-        title = "Carte du Sénégal (plein écran)",
+        title = "Carte en plein écran",
         size = "l",
         easyClose = TRUE,
         leafletOutput(session$ns("map_full"), width = "100%", height = "600px")
       ))
     })
     
-    # Rendu de la carte en mode plein écran (même logique)
+    # Carte plein écran (même logique)
     output$map_full <- renderLeaflet({
-      req(data_reac()$indicator != "")
-      chosen_col <- if (data_reac()$indicator == "Taux moyen de Paludisme") {
-        "mean_index"
-      } else {
-        "taux_malaria"
-      }
-      pal <- colorNumeric("viridis", domain = NULL, na.color = "grey50")
+      req(data_reac()$indicator_chosen)
       
-      if (input$admin_level == "Région") {
-        leaflet(regions) %>%
-          addTiles() %>%
-          addPolygons(
-            fillColor = ~pal(get(chosen_col)),
-            fillOpacity = 0.7,
-            color = "white",
-            weight = 2,
-            popup = ~paste0("Région : ", ADM1_FR,
-                            "<br>Taux : ", round(get(chosen_col), 3))
-          ) %>%
-          addLegend("bottomright", pal = pal, values = regions[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Région)"))
+      # Réutilisez la même logique que ci-dessus,
+      # ou factorisez dans une fonction si vous préférez ne pas dupliquer.
+      
+      # Pour simplifier, on va juste rappeler input$admin_level et faire la même chose.
+      
+      indic <- data_reac()$indicator_chosen
+      chosen_col <- switch(
+        indic,
+        "Taux moyen de Paludisme" = "mean_index",
+        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
+        "NDVI" = "mean_ndvi",
+        NULL
+      )
+      
+      if (input$admin_level == "Grid") {
+        raster_layer <- switch(
+          indic,
+          "Taux moyen de Paludisme" = data_global$mean_raster,
+          "Taux de malaria chez les enfants" = {
+            if (is.null(data_global$raster_nombre_malaria_enfants) ||
+                is.null(data_global$raster_pop_enfants)) {
+              NULL
+            } else {
+              data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants
+            }
+          },
+          "NDVI" = data_global$ndvi_raster,
+          NULL
+        )
+        req(raster_layer)
+        pal_r <- colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE))
         
-      } else if (input$admin_level == "Département") {
-        leaflet(departments) %>%
+        leaflet() %>%
           addTiles() %>%
-          addPolygons(
-            fillColor = ~pal(get(chosen_col)),
-            fillOpacity = 0.7,
-            color = "white",
-            weight = 2,
-            popup = ~paste0("Département : ", ADM2_FR,
-                            "<br>Taux : ", round(get(chosen_col), 3))
-          ) %>%
-          addLegend("bottomright", pal = pal, values = departments[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Dépt)"))
+          addRasterImage(raster_layer, colors = pal_r, opacity = 0.8) %>%
+          addLegend(
+            pal = pal_r,
+            values = values(raster_layer),
+            title = indic
+          )
         
       } else {
-        leaflet(communes) %>%
+        req(chosen_col)
+        sf_data <- switch(
+          input$admin_level,
+          "Région" = data_global$regions,
+          "Département" = data_global$departments,
+          "Commune" = data_global$communes
+        )
+        req(sf_data)
+        
+        pal <- colorNumeric("viridis", domain = range(sf_data[[chosen_col]], na.rm = TRUE))
+        name_col <- switch(
+          input$admin_level,
+          "Région" = "ADM1_FR",
+          "Département" = "ADM2_FR",
+          "Commune" = "ADM3_FR"
+        )
+        
+        leaflet(sf_data) %>%
           addTiles() %>%
           addPolygons(
-            fillColor = ~pal(get(chosen_col)),
+            fillColor = ~ pal(get(chosen_col)),
             fillOpacity = 0.7,
             color = "white",
             weight = 2,
-            popup = ~paste0("Commune : ", ADM3_FR,
-                            "<br>Taux : ", round(get(chosen_col), 3))
+            popup = ~ paste0(input$admin_level, " : ", get(name_col),
+                             "<br>Valeur : ", round(get(chosen_col), 3))
           ) %>%
-          addLegend("bottomright", pal = pal, values = communes[[chosen_col]],
-                    title = paste(data_reac()$indicator, "(Commune)"))
+          addLegend(
+            "bottomright",
+            pal = pal,
+            values = sf_data[[chosen_col]],
+            title = paste(indic, "(", input$admin_level, ")")
+          )
       }
     })
     
-    return(NULL)
   })
 }
