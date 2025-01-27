@@ -45,15 +45,15 @@ mod_landing_page_ui <- function(id) {
         "d'utiliser ce portail.")
     ),
     
-    # Sélection du pays => ici "Sénégal" uniquement
+    # Sélection du pays
     selectInput(ns("country"), "Sélectionnez un pays :",
-                choices = c("", fake_countries),
+                choices = c("", "Senegal", "Burkina"),
                 selected = ""),
     
-    # Sélection de l'indicateur => maintenant 2 possibilités
+    # Sélection de l'indicateur
     conditionalPanel(
-      condition = sprintf("input['%s'] != ''", ns("country")),
-      selectInput(ns("indicator"), "Sélectionnez un indicateur :", choices = NULL)
+      condition = sprintf("input['%s-country'] != ''", ns("")),
+      selectInput(ns("indicator_chosen"), "Sélectionnez un indicateur :", choices = NULL)
     )
   )
 }
@@ -61,20 +61,20 @@ mod_landing_page_ui <- function(id) {
 mod_landing_page_server <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    # Met à jour la liste d'indicateurs si le pays est choisi
+    # Met à jour la liste d'indicateurs si un pays est choisi
     observeEvent(input$country, {
       req(input$country)
       country_selected <- input$country
       indics <- fake_indicators[[country_selected]]
-      updateSelectInput(session, "indicator", choices = c("", indics), selected = "")
+      updateSelectInput(session, "indicator_chosen", choices = c("", indics), selected = "")
     })
     
-    # Retourne le pays + indicateur
+    # Retourne le pays et l'indicateur sélectionné
     return(
       reactive({
         list(
           country = input$country,
-          indicator = input$indicator
+          indicator_chosen = input$indicator_chosen
         )
       })
     )

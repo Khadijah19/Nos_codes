@@ -2,12 +2,11 @@
 # mod_state_filter_page.R
 # Module 4 : Sélection d’une Région, puis onglets Résumé, Tableau, Graphique
 # ─────────────────────────────────────────────────────────────────────────────
-
 mod_state_filter_page_ui <- function(id){
   ns <- NS(id)
   fluidPage(
     conditionalPanel(
-      condition = sprintf("input['landing_page-country'] !== ''&& input['landing_page-indicator'] !== ''"),
+      condition = sprintf("input['landing_page-country'] !== ''&& input['landing_page-indicator_chosen'] !== ''"),
       
       fluidRow(
         column(
@@ -59,9 +58,9 @@ mod_state_filter_page_ui <- function(id){
                 title = "Graphique",
                 br(),
                 plotOutput(ns("dep_plot"), height = "300px"),
+                downloadButton(ns("download_dep_plot"), "Télécharger Graphique Départements (PNG)"),
                 plotOutput(ns("com_plot"), height = "300px"),
-                hr(),
-                textOutput(ns("graph_comment"))
+                downloadButton(ns("download_com_plot"), "Télécharger Graphique Communes (PNG)")
               )
             )
           )
@@ -71,54 +70,69 @@ mod_state_filter_page_ui <- function(id){
   )
 }
 
-mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
-  moduleServer(id, function(input, output, session){
+
+
+
+mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) {
+  moduleServer(id, function(input, output, session) {
     
     data_reac <- reactive({ landing_inputs() })
     
     # Titre indicateur
     output$selected_indicator_title <- renderText({
-      req(data_reac()$indicator != "")
-      paste("Indicateur sélectionné :", data_reac()$indicator)
+      req(data_reac()$indicator_chosen)
+      paste("Indicateur sélectionné :", data_reac()$indicator_chosen)
     })
     
     # Titre région
     output$selected_region_title <- renderText({
-      req(input$region != "")
+      req(input$region)
       paste("Région sélectionnée :", input$region)
     })
     
-    # Fonction interne pour gérer la fourchette
-    getRange <- function(signif_str){
+    # Fonction pour obtenir la plage de filtrage
+    getRange <- function(signif_str) {
       if (signif_str == "Moins de 0.3") return(c(-Inf, 0.3))
       if (signif_str == "0.3 à 0.6")   return(c(0.3, 0.6))
       if (signif_str == "Plus de 0.6") return(c(0.6, Inf))
       return(c(-Inf, Inf))  # "Afficher tout"
     }
     
-    # Reactive pour connaître la colonne de l'indicateur
+    # Identifier la colonne en fonction de l'indicateur
     chosen_col <- reactive({
-      if (data_reac()$indicator == "Taux moyen de Paludisme") {
-        "mean_index"
-      } else {
-        "taux_malaria"
-      }
+      switch(
+        data_reac()$indicator_chosen,
+        "Taux moyen de Paludisme" = "mean_index",
+        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
+        "NDVI" = "mean_ndvi",
+        NULL
+      )
     })
     
-    # Reactive pour subsetter les départements de la région choisie
+    # Vérification si la colonne est valide
+    validate_chosen_col <- reactive({
+      if (is.null(chosen_col())) {
+        showNotification("Aucun indicateur valide n'est sélectionné.", type = "error")
+        stop("Colonne choisie est NULL.")
+      }
+      chosen_col()
+    })
+    
+    # Filtrage des départements
     deps_filtered <- reactive({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       minmax <- getRange(input$signif)
-      # Filtrer les départements en fonction de la région ET de la fourchette
       departments %>% 
         filter(ADM1_FR == input$region,
                .data[[chosen_col()]] >= minmax[1],
                .data[[chosen_col()]] <= minmax[2])
     })
     
-    # Reactive pour subsetter les communes
+    # Filtrage des communes
     coms_filtered <- reactive({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       minmax <- getRange(input$signif)
       communes %>% 
         filter(ADM1_FR == input$region,
@@ -126,11 +140,11 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
                .data[[chosen_col()]] <= minmax[2])
     })
     
-    # Onglet Résumé
+    # Résumé des données
     output$resume_table <- renderTable({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       
-      # On récupère les valeurs pour la région, ses départements et communes
       dep_vals <- deps_filtered()[[chosen_col()]]
       com_vals <- coms_filtered()[[chosen_col()]]
       reg_val <- regions %>% 
@@ -140,40 +154,38 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
       data.frame(
         row.names = c("Moyenne", "Maximum", "Minimum"),
         "Région"      = c(
-          round(mean(reg_val), 3),
-          round(max(reg_val), 3),
-          round(min(reg_val), 3)
+          round(mean(reg_val, na.rm = TRUE), 3),
+          round(max(reg_val, na.rm = TRUE), 3),
+          round(min(reg_val, na.rm = TRUE), 3)
         ),
         "Département" = c(
-          round(mean(dep_vals), 3),
-          round(max(dep_vals), 3),
-          round(min(dep_vals), 3)
+          round(mean(dep_vals, na.rm = TRUE), 3),
+          round(max(dep_vals, na.rm = TRUE), 3),
+          round(min(dep_vals, na.rm = TRUE), 3)
         ),
         "Commune"     = c(
-          round(mean(com_vals), 3),
-          round(max(com_vals), 3),
-          round(min(com_vals), 3)
+          round(mean(com_vals, na.rm = TRUE), 3),
+          round(max(com_vals, na.rm = TRUE), 3),
+          round(min(com_vals, na.rm = TRUE), 3)
         )
       )
     }, rownames = TRUE)
     
-    output$resume_comment <- renderText({
-      "Interprétation : Le tableau ci-dessus montre la moyenne, le min et le max pour la région sélectionnée, 
-       ainsi que pour les départements et les communes qui la composent (selon la fourchette de filtrage)."
-    })
-    
-    # Onglet Tableau
+    # Tableau des départements
     output$dep_table <- renderTable({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       df <- deps_filtered()
       data.frame(
-        Departement = df$ADM2_FR,
+        Département = df$ADM2_FR,
         Taux = round(df[[chosen_col()]], 3)
       )
     })
     
+    # Tableau des communes
     output$com_table <- renderTable({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       df <- coms_filtered()
       data.frame(
         Commune = df$ADM3_FR,
@@ -181,14 +193,10 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
       )
     })
     
-    output$table_comment <- renderText({
-      "Interprétation : Ce tableau liste les Départements et Communes (filtrés selon la fourchette de significativité) 
-       et leurs valeurs pour l'indicateur choisi."
-    })
-    
-    # Onglet Graphique
+    # Graphiques des départements
     output$dep_plot <- renderPlot({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       df <- deps_filtered()
       ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]], group = 1)) +
         geom_line(color = "blue") +
@@ -198,8 +206,10 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     })
     
+    # Graphiques des communes
     output$com_plot <- renderPlot({
-      req(input$region != "")
+      req(input$region)
+      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
       df <- coms_filtered()
       ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]], group = 1)) +
         geom_line(color = "red") +
@@ -209,9 +219,56 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen){
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     })
     
-    output$graph_comment <- renderText({
-      "Interprétation : Les graphiques ci-dessus illustrent la valeur de l'indicateur 
-       dans les départements et communes (filtrés) de la région sélectionnée."
-    })
+    output$download_dep_table <- downloadHandler(
+      filename = function() {
+        paste("table_departements_", input$region, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(deps_filtered(), file, row.names = FALSE)
+      }
+    )
+    
+    output$download_com_table <- downloadHandler(
+      filename = function() {
+        paste("table_communes_", input$region, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(coms_filtered(), file, row.names = FALSE)
+      }
+    )
+    output$download_dep_plot <- downloadHandler(
+      filename = function() {
+        paste("graphique_departements_", input$region, ".png", sep = "")
+      },
+      content = function(file) {
+        df <- deps_filtered()
+        p <- ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]])) +
+          geom_line(color = "blue") +
+          geom_point(color = "blue") +
+          theme_minimal() +
+          labs(title = "Graphique par Département", x = "Département", y = "Valeur")
+        
+        ggsave(file, plot = p, device = "png", width = 10, height = 6)
+      }
+    )
+    
+    output$download_com_plot <- downloadHandler(
+      filename = function() {
+        paste("graphique_communes_", input$region, ".png", sep = "")
+      },
+      content = function(file) {
+        df <- coms_filtered()
+        p <- ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]])) +
+          geom_line(color = "red") +
+          geom_point(color = "red") +
+          theme_minimal() +
+          labs(title = "Graphique par Commune", x = "Commune", y = "Valeur")
+        
+        ggsave(file, plot = p, device = "png", width = 10, height = 6)
+      }
+    )
+    
+    
+    
   })
 }
