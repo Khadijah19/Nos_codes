@@ -46,7 +46,7 @@ mod_map_page_ui <- function(id){
   )
 }
 
-mod_map_page_server <- function(id, landing_inputs, indicator_chosen){
+mod_map_page_server <- function(id, landing_inputs, indicator_chosen_){
   moduleServer(id, function(input, output, session){
     
     data_reac <- reactive({
