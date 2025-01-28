@@ -1,0 +1,12 @@
+name: Application_SES_1
+title: Application_SES_1
+username: aliounek
+account: aliounek
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13839428
+bundleId: 9714516
+url: https://aliounek.shinyapps.io/Application_SES_1/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
