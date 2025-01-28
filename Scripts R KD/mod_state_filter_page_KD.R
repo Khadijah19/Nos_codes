@@ -1,19 +1,15 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# mod_state_filter_page.R
-# Module 4 : Sélection d’une Région, puis onglets Résumé, Tableau, Graphique
-# ─────────────────────────────────────────────────────────────────────────────
 mod_state_filter_page_ui <- function(id){
   ns <- NS(id)
   fluidPage(
     conditionalPanel(
-      condition = sprintf("input['landing_page-country'] !== ''&& input['landing_page-indicator_chosen'] !== ''"),
+      condition = sprintf("input['landing_page-country'] !== '' && input['landing_page-indicator_chosen'] !== ''"),
       
       fluidRow(
         column(
           width = 3,
-          # Liste dynamique des régions (en supposant la colonne "ADM1_FR")
+          # Liste dynamique des régions
           selectInput(ns("region"), "Sélectionnez une Région :",
-                      choices = c("", sort(unique(regions$ADM1_FR)))),
+                      choices = c("")),
           selectInput(ns("signif"), "Filtrer par Significativité (ou seuil) :",
                       choices = c("Afficher tout", "Moins de 0.3", "0.3 à 0.6", "Plus de 0.6")),
           helpText("Les données affichées peuvent être filtrées selon la fourchette de valeurs.")
@@ -70,13 +66,20 @@ mod_state_filter_page_ui <- function(id){
   )
 }
 
-
-
-
 mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) {
   moduleServer(id, function(input, output, session) {
     
+    ns <- session$ns
     data_reac <- reactive({ landing_inputs() })
+    
+    # Observer le changement de pays et mettre à jour les données et les choix des régions
+    observeEvent(data_reac()$country, {
+      req(data_reac()$country)
+      update_data_global(data_reac()$country) # Mise à jour des données pour le pays sélectionné
+      
+      # Mettre à jour les choix des régions en fonction du pays
+      updateSelectInput(session, ns("region"), choices = c("", unique(data_global$regions$ADM1_FR)))
+    })
     
     # Titre indicateur
     output$selected_indicator_title <- renderText({
@@ -105,23 +108,22 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
         "Taux moyen de Paludisme" = "mean_index",
         "Taux de malaria chez les enfants" = "taux_malaria_enfants",
         "NDVI" = "mean_ndvi",
+        "NDBI" = "mean_ndbi",
+        "CDI" = "CDI",
         NULL
       )
     })
     
-    # Vérification si la colonne est valide
+    # Validation de la colonne choisie
     validate_chosen_col <- reactive({
-      if (is.null(chosen_col())) {
-        showNotification("Aucun indicateur valide n'est sélectionné.", type = "error")
-        stop("Colonne choisie est NULL.")
-      }
+      req(chosen_col())
       chosen_col()
     })
     
     # Filtrage des départements
     deps_filtered <- reactive({
       req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
+      req(validate_chosen_col())
       minmax <- getRange(input$signif)
       departments %>% 
         filter(ADM1_FR == input$region,
@@ -132,7 +134,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
     # Filtrage des communes
     coms_filtered <- reactive({
       req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
+      req(validate_chosen_col())
       minmax <- getRange(input$signif)
       communes %>% 
         filter(ADM1_FR == input$region,
@@ -143,7 +145,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
     # Résumé des données
     output$resume_table <- renderTable({
       req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
+      req(validate_chosen_col())
       
       dep_vals <- deps_filtered()[[chosen_col()]]
       com_vals <- coms_filtered()[[chosen_col()]]
@@ -171,34 +173,12 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       )
     }, rownames = TRUE)
     
-    # Tableau des départements
-    output$dep_table <- renderTable({
-      req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
-      df <- deps_filtered()
-      data.frame(
-        Département = df$ADM2_FR,
-        Taux = round(df[[chosen_col()]], 3)
-      )
-    })
-    
-    # Tableau des communes
-    output$com_table <- renderTable({
-      req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
-      df <- coms_filtered()
-      data.frame(
-        Commune = df$ADM3_FR,
-        Taux = round(df[[chosen_col()]], 3)
-      )
-    })
-    
     # Graphiques des départements
     output$dep_plot <- renderPlot({
       req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
+      req(validate_chosen_col())
       df <- deps_filtered()
-      ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]], group = 1)) +
+      ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]])) +
         geom_line(color = "blue") +
         geom_point(color = "blue", size = 2) +
         theme_minimal() +
@@ -209,66 +189,14 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
     # Graphiques des communes
     output$com_plot <- renderPlot({
       req(input$region)
-      req(validate_chosen_col()) # Vérification si une colonne valide est sélectionnée
+      req(validate_chosen_col())
       df <- coms_filtered()
-      ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]], group = 1)) +
+      ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]])) +
         geom_line(color = "red") +
         geom_point(color = "red", size = 2) +
         theme_minimal() +
         labs(title = "Taux par Commune", x = "Commune", y = "Valeur de l'indicateur") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
     })
-    
-    output$download_dep_table <- downloadHandler(
-      filename = function() {
-        paste("table_departements_", input$region, ".csv", sep = "")
-      },
-      content = function(file) {
-        write.csv(deps_filtered(), file, row.names = FALSE)
-      }
-    )
-    
-    output$download_com_table <- downloadHandler(
-      filename = function() {
-        paste("table_communes_", input$region, ".csv", sep = "")
-      },
-      content = function(file) {
-        write.csv(coms_filtered(), file, row.names = FALSE)
-      }
-    )
-    output$download_dep_plot <- downloadHandler(
-      filename = function() {
-        paste("graphique_departements_", input$region, ".png", sep = "")
-      },
-      content = function(file) {
-        df <- deps_filtered()
-        p <- ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]])) +
-          geom_line(color = "blue") +
-          geom_point(color = "blue") +
-          theme_minimal() +
-          labs(title = "Graphique par Département", x = "Département", y = "Valeur")
-        
-        ggsave(file, plot = p, device = "png", width = 10, height = 6)
-      }
-    )
-    
-    output$download_com_plot <- downloadHandler(
-      filename = function() {
-        paste("graphique_communes_", input$region, ".png", sep = "")
-      },
-      content = function(file) {
-        df <- coms_filtered()
-        p <- ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]])) +
-          geom_line(color = "red") +
-          geom_point(color = "red") +
-          theme_minimal() +
-          labs(title = "Graphique par Commune", x = "Commune", y = "Valeur")
-        
-        ggsave(file, plot = p, device = "png", width = 10, height = 6)
-      }
-    )
-    
-    
-    
   })
 }

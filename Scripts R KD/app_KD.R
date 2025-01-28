@@ -33,7 +33,7 @@ ui <- fluidPage(
       mod_state_filter_page_ui("state_filter_page")
     
   )
-)
+) 
 
 server <- function(input, output, session) {
   # 1) Landing

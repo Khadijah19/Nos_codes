@@ -576,5 +576,401 @@ writeRaster(raster_pop_enfants, "C:/Users/HP/OneDrive/Documents/GitHub/Projet_Fi
 
 
 
+##CDI 
+CDI <- raster("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Burkina/Rasters/CDI/burkina_tous_points_raster.tif")
+summary(CDI)
+plot(CDI)
+
+
+
+
+data <- read.csv("C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/ISEP3/Stat_spatiales/TP11/Points_data.csv")
+View(data)
+
+## Chargement du fichier de données spatiales (shapefile) pour les limites administratives du Mali
+
+shp <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm0_anat_20240520.shp")
+
+## Conversion des données en un objet spatial sf
+
+data_spatial <- sf::st_as_sf(data, coords = c("longitude", "latitude"), crs = st_crs(shp))
+
+
+# On selectionne donc le pays
+BFA = "Senegal"
+
+# Créer un sous-ensemble de données ne contenant que les événements relatifs au Mali
+AOI_event <- data_spatial %>%
+  filter(country == BFA)
+
+plot(AOI_event)
+
+# Visualisation des événements au Mali
+ggplot(AOI_event) +
+  aes(fill = event_type, colour = event_type) + # Associer les couleurs aux types d'événements
+  geom_sf(size = 1.2) + # Représentation des géométries spatiales
+  scale_fill_hue(direction = 1) + # Échelle de couleur pour les types d'événements
+  theme_minimal()
+
+# Fonction pour créer un raster basé sur les données géolocalisées
+Create_raster <- function(datafile, filename = "C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/ISEP3/Stat_spatiales/TP11/Rasterisation.tif") {
+  # Reprojection des données spatiales pour un système de coordonnées en mètres
+  # EPSG 32629 : UTM Zone 29N, adapté au Mali
+  AOI_prj <- st_transform(datafile, crs = 32629)  
+  
+  # Définir l'étendue géographique (extent) à partir des limites de l'objet spatial reprojeté
+  ext <- raster::extent(sf::st_bbox(AOI_prj))  # Conversion des limites en format `extent`
+  
+  # Spécification de la résolution en mètres (5 km ici)
+  res <- 5000  
+  
+  # Définir un système de coordonnées pour le raster
+  rast_crs <- CRS("+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs")
+  raster_template <- raster::raster(ext = ext, resolution = res, crs = rast_crs)
+  
+  # Rasteriser les données : calculer la somme des événements dans chaque cellule de la grille
+  Raster <- raster::rasterize(AOI_prj, raster_template, field = 1, fun = sum, na.rm = TRUE)
+  
+  # Sauvegarder le raster en format GeoTIFF
+  raster::writeRaster(Raster, filename = filename, format = "GTiff", overwrite = TRUE)
+  
+  return(Raster) # Pour retourner l'objet raster
+}
+
+# Application de la fonction sur les données des événements
+AOI_Raster <- Create_raster(
+  AOI_event, 
+  "C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/ISEP3/Stat_spatiales/TP11/Rasterisation_general.tif"
+)
+plot(AOI_Raster)
+
+
+### Création de raster pour chaque année et visualistion du nombre d'attaques par année
+
+for( i in unique(data$year)){
+  assign(paste0("data_", i), data[data$year == i,])
+  assign(paste0("AOI_Raster_", i), Create_raster(AOI_event,  paste0("C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/ISEP3/Stat_spatiales/TP11/Rasterisation_", i, ".tif")))# Création du raster pour chaque année et sauvegarde en fichier GeoTIFF
+}
+
+
+AOI_Raster_binaire <- AOI_Raster_2020
+values(AOI_Raster_binaire) <- ifelse(values(AOI_Raster_2020) >= 5, 1, 0) # Les valeurs 1 sont prises si le nombre d'evenements est supérieur à 5
+
+
+writeRaster(AOI_Raster_binaire, "C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/ISEP3/Stat_spatiales/TP11/Rasterisation_2020_Binaire_EVENEMENTS.tif", format = "GTiff", overwrite = TRUE)
+
+# Créer et binariser directement en excluant les NA
+AOI_Raster_binaire[!is.na(values(AOI_Raster)) & values(AOI_Raster) >= 5] <- 1
+AOI_Raster_binaire[!is.na(values(AOI_Raster)) & values(AOI_Raster) < 5] <- 0
+
+pop <- raster("C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/Stat_explo_spatiale/Statistique-Exploratoire-Spatiale/TP4/data/WorldPop/SEN/SEN_population_v1_0_gridded.tif")
+
+### Agréger le raster à 5 km en utilisant la somme
+fact <- round(5000/100)
+
+pop_5km <- aggregate(pop, fact = fact, fun = sum, na.rm = TRUE)
+
+
+### Sauvegarder le raster agrégé
+
+
+writeRaster(pop_5km, "C:/Users/HP/OneDrive/1231116193333-Desktop/Desktop/Stat_explo_spatiale/Statistique-Exploratoire-Spatiale/TP4/data/WorldPop/SEN/SEN_population_v1_0_gridded_5km.tif", format = "GTiff", overwrite = TRUE)
+
+
+crs(pop_5km) # En degres (CRS=WGS84)
+crs(AOI_Raster_binaire) # En metre (UTM zone 29N)
+
+
+#Les systèmes de coordonnées ne sont pas les mêmes, on va donc reprojeter
+
+### Reprojection avec méthode nearest neigbours
+
+
+pop_5km_utm <- projectRaster(pop_5km, crs = crs(AOI_Raster_binaire), method = "ngb")
+crs(pop_5km_utm) # C'est maintenant en en metre (UTM zone 29N)
+
+
+### Verification de la correspondance de resolution
+
+
+res(pop_5km_utm)
+res(AOI_Raster_binaire)
+
+
+
+### Resample pour qu'on ait également la meme dimension
+
+
+pop_resampled <- resample(pop_5km_utm, AOI_Raster_binaire, method = "ngb")
+
+
+### Rebinarisation stricte
+
+
+pop_resampled_binary <- calc(pop_resampled, fun = function(x) {
+  ifelse(x < 50, 0, 1)
+})
+
+### Vérification finale
+
+
+print(unique(values(pop_resampled_binary)))
+
+
+
+## 3- RASTER PRODUIT
+
+### Vérifier les dimensions des deux rasters avant de pouvoir faire la multiplication
+
+
+dim_AOI <- dim(AOI_Raster_binaire)
+dim_pop <- dim(pop_resampled_binary)
+print(paste("Dimensions du raster AOI_Raster_binaire : ", paste(dim_AOI, collapse = " x ")))
+print(paste("Dimensions du raster pop_5km_binary : ", paste(dim_pop, collapse = " x ")))
+print(unique(values(pop_resampled_binary))) 
+print(unique(values(AOI_Raster_binaire)))
+
+
+### FAISONS ACTUELLEMENT LA MULTIPLICATION
+
+
+mult_raster <- AOI_Raster_binaire * pop_resampled_binary
+
+
+### Vérifier un résumé des valeurs du raster résultant
+writeRaster(pop_resampled_binary, "C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Rasters/CDI/pop_resampled_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(mult_raster, "C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Rasters/CDI/mult_raster.tif", format = "GTiff", overwrite = TRUE)
+plot(mult_raster)
+plot(pop_resampled_binary)
+plot(mult_raster)
+
+  
+a<- raster("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Burkina/Rasters/CDI/pop_resampled_binary.tif")
+plot(a)
+
+summary(values(mult_raster))
+
+
+## 4- Calculer par admin, du CDI
+
+### AU NIVEAU DES REGIONS
+
+
+shp_region <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm1_anat_20240520.shp", quiet= TRUE)
+shp_departement <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm2_anat_20240520.shp", quiet= TRUE)
+shp_commune <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm3_anat_20240520.shp", quiet= TRUE)
+
+
+#### Calculer le nombre de 1 dans le raster binarisé pour chaque zone administrative
+
+
+pop_count_region <- extract(pop_resampled_binary, shp_region, fun = sum, na.rm = TRUE)
+print(pop_count_region)
+
+
+#### Calculer le nombre de 1 dans le raster produit pour chaque zone administrative
+
+
+prod_count_region <- extract(mult_raster, shp_region, fun = sum, na.rm = TRUE)
+print(prod_count_region)
+
+
+#### Calculer le CDI pour chaque zone administrative
+
+
+CDI_region <- prod_count_region / pop_count_region
+plot(CDI)
+
+a_region <-data.frame(Admin = shp_region$ADM1_FR, CDI = CDI_region)
+View(a_region)
+
+# Joindre les valeurs du CDI à la carte des régions
+shp_region$CDI <- CDI_region
+shp_region_utm <- st_transform(shp_region, crs = 32629)
+# Charger le package ggspatial
+library(ggspatial)
+
+# Visualisation avec ggplot
+ggplot(data = shp_region_utm) +
+  geom_sf(aes(fill = CDI), color = "white", size = 0.2) +  # Remplir selon CDI
+  scale_fill_viridis_c(option = "C", na.value = "gray") +  # Couleur pour les CDI, gérer les NA en mettant le gris
+  labs(title = "Carte du CDI par Région", fill = "CDI") +
+  geom_sf_text(aes(label = ADM1_FR), size = 3, color = "black", fontface = "bold") +
+  annotation_north_arrow(location = "tl", which_north = "true", 
+                         height = unit(1, "cm"), width = unit(1, "cm"),
+                         style = north_arrow_fancy_orienteering) +  # Style de la flèche
+  theme_minimal() +
+  theme(legend.position = "right",  
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8)) +
+  guides(fill = guide_colorbar(title = "CDI", title.position = "top", 
+                               title.hjust = 0.5, barheight = 10))
+
+
+
+# Charger les bibliothèques nécessaires
+library(leaflet)
+library(sf)
+library(viridis) # Pour les palettes de couleurs
+
+# Génération d'une palette de couleurs en fonction de la variable CDI
+palette_CDI_region <- colorNumeric(palette = "viridis", domain = shp_region_utm$CDI, na.color = "gray")
+
+# Carte interactive avec Leaflet
+leaflet(data = shp_region_utm) %>%
+  addTiles() %>%  # Ajouter une couche de fond
+  addPolygons(
+    fillColor = ~palette_CDI_region(CDI_region),  # Couleur de remplissage en fonction de CDI
+    weight = 1,  # Bordure des régions
+    color = "white",  # Couleur de la bordure
+    fillOpacity = 0.7,  # Opacité du remplissage
+    label = ~paste("<strong>Région:</strong>", ADM1_FR, "<br>",
+                   "<strong>CDI:</strong>", round(CDI_region, 2)),  # Infobulle
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "blue",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    )
+  ) %>%
+  addLegend(
+    pal = palette_CDI,
+    values = ~CDI,
+    position = "bottomright",
+    title = "CDI",
+    labFormat = labelFormat(suffix = ""),
+    opacity = 1
+  )
+
+
+# Charger les bibliothèques nécessaires
+library(sf)
+library(leaflet)
+library(viridis)
+
+# ────────────────────────────────────────────────
+# 1. Chargement des shapefiles et calculs du CDI
+# ────────────────────────────────────────────────
+
+# Charger les shapefiles
+shp_region <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm1_anat_20240520.shp", quiet = TRUE)
+shp_departement <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm2_anat_20240520.shp", quiet = TRUE)
+shp_commune <- st_read("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Shapefiles/sen_admbnda_adm3_anat_20240520.shp", quiet = TRUE)
+
+# Calculer les valeurs de population et de production pour chaque niveau
+pop_count_region <- extract(pop_resampled_binary, shp_region, fun = sum, na.rm = TRUE)
+prod_count_region <- extract(mult_raster, shp_region, fun = sum, na.rm = TRUE)
+CDI_region <- prod_count_region / pop_count_region
+
+pop_count_departement <- extract(pop_resampled_binary, shp_departement, fun = sum, na.rm = TRUE)
+prod_count_departement <- extract(mult_raster, shp_departement, fun = sum, na.rm = TRUE)
+CDI_departement <- prod_count_departement / pop_count_departement
+
+pop_count_commune <- extract(pop_resampled_binary, shp_commune, fun = sum, na.rm = TRUE)
+prod_count_commune <- extract(mult_raster, shp_commune, fun = sum, na.rm = TRUE)
+CDI_commune <- prod_count_commune / pop_count_commune
+
+# Ajouter les valeurs CDI aux shapefiles
+shp_region$CDI <- CDI_region
+shp_departement$CDI <- CDI_departement
+shp_commune$CDI <- CDI_commune
+
+# ────────────────────────────────────────────────
+# 2. Création des cartes interactives avec Leaflet
+# ────────────────────────────────────────────────
+
+# a. Carte des Régions
+palette_CDI_region <- colorNumeric(palette = "viridis", domain = shp_region$CDI, na.color = "gray")
+leaflet(data = shp_region) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~palette_CDI_region(CDI),
+    weight = 1,
+    color = "white",
+    fillOpacity = 0.7,
+    label = ~paste("<strong>Région:</strong>", ADM1_FR, "<br>",
+                   "<strong>CDI:</strong>", round(CDI, 2)),
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "blue",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    )
+  ) %>%
+  addLegend(
+    pal = palette_CDI_region,
+    values = ~CDI,
+    position = "bottomright",
+    title = "CDI Régions",
+    labFormat = labelFormat(suffix = ""),
+    opacity = 1
+  )
+
+# b. Carte des Départements
+palette_CDI_depart <- colorNumeric(palette = "viridis", domain = shp_departement$CDI, na.color = "gray")
+leaflet(data = shp_departement) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~palette_CDI_depart(CDI),
+    weight = 1,
+    color = "white",
+    fillOpacity = 0.7,
+    label = ~paste("<strong>Département:</strong>", ADM2_FR, "<br>",
+                   "<strong>CDI:</strong>", round(CDI, 2)),
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "blue",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    )
+  ) %>%
+  addLegend(
+    pal = palette_CDI_depart,
+    values = ~CDI,
+    position = "bottomright",
+    title = "CDI Départements",
+    labFormat = labelFormat(suffix = ""),
+    opacity = 1
+  )
+
+# c. Carte des Communes
+palette_CDI_commune <- colorNumeric(palette = "viridis", domain = shp_commune$CDI, na.color = "gray")
+leaflet(data = shp_commune) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~palette_CDI_commune(CDI),
+    weight = 1,
+    color = "white",
+    fillOpacity = 0.7,
+    label = ~paste("Commune:", ADM3_FR, " ; ",
+                   "CDI:", round(CDI, 2)),
+    highlightOptions = highlightOptions(
+      weight = 3,
+      color = "blue",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    )
+  ) %>%
+  addLegend(
+    pal = palette_CDI_commune,
+    values = ~CDI,
+    position = "bottomright",
+    title = "CDI Communes",
+    labFormat = labelFormat(suffix = ""),
+    opacity = 1
+  )
+
+
+NDBI <- raster("C:/Users/HP/Downloads/NDBI_Senegal.tif")
+View(NDBI)
+plot(NDBI)
+
+
+NDVI <- raster("C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data/Senegal/Rasters/Indices_spectraux/NDVI_Senegal.tif")
+plot(NDVI)
+
+
+NNDVI<- raster("C:/Users/HP/Downloads/NDVI_Burkina (1).tif")
+plot(NNDVI)
 
 
