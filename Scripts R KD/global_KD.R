@@ -36,7 +36,7 @@ shapefile_noms <- list(
   )
 )
 
-chemin_base <- "C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data"
+chemin_base <- "../data"
 
 # 4) Fonction pour charger les données pour un pays donné
 charger_donnees_pays <- function(pays) {

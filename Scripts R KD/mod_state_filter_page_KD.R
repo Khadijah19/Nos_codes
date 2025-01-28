@@ -312,7 +312,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
           theme_minimal() +
           labs(title = "Graphique par Département", x = "Département", y = "Valeur")
         
-        ggsave(file, plot = p, device = "png", width = 10, height = 6)
+        ggsave(file, plot = p, device = "png", width = 10, height = 6, bg = "white")
       }
     )
     
@@ -328,7 +328,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
           theme_minimal() +
           labs(title = "Graphique par Commune", x = "Commune", y = "Valeur")
         
-        ggsave(file, plot = p, device = "png", width = 10, height = 6)
+        ggsave(file, plot = p, device = "png", width = 10, height = 6, bg = "white")
       }
     )
     
