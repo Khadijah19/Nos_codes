@@ -23,7 +23,7 @@ fake_indicators <- list(
 
 # 3) Paramétrage des chemins de shapefiles/rasters par pays
 #    Adaptez à votre propre organisation des dossiers !
-chemin_base <- "C:/Users/ALIOUNE KANE/Downloads/Projet_Final_Stats_Spatiales/data"
+chemin_base <- "C:/Users/hp/Desktop/AwaDIAW_ISE-CL/Semestre1/Informatique_Statistique/Statistique_exploratoire/Projet_Final_Stat_Spatiale/data"
 
 shapefile_noms <- list(
   "Senegal" = list(

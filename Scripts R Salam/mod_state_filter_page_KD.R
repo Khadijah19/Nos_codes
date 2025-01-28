@@ -220,7 +220,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       req(input$region, validate_chosen_col())
       df <- deps_filtered()
       data.frame(
-        Département = df$ADM2_FR,
+        Departement = df$ADM2_FR,
         Taux = round(df[[chosen_col()]], 3)
       )
     })
