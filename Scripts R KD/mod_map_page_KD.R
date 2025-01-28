@@ -72,27 +72,27 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
     output$map <- renderLeaflet({
       req(data_reac()$indicator_chosen)
       
-      # Déterminer la colonne ou raster en fonction de l'indicateur
+      # Déterminer la colonne ou le raster en fonction de l'indicateur
       indic <- data_reac()$indicator_chosen
       
       # Nom de la colonne pour le mode agrégé
       chosen_col <- switch(
         indic,
-        "Taux moyen de Paludisme"        = "mean_index",
-        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
-        "NDVI" = "mean_ndvi",
-        "NDBI" = "mean_ndbi",
-        "CDI"  = "CDI",  # ex : Indicateur de diffusion de conflits
+        "Taux moyen de Paludisme"             = "mean_index",
+        "Taux de malaria chez les enfants"    = "taux_malaria_enfants",
+        "NDVI"                                = "mean_ndvi",
+        "NDBI"                                = "mean_ndbi",
+        "CDI"                                 = "CDI",
         NULL
       )
       
       # Si l'utilisateur a sélectionné "Grid", on affiche le raster brut
       if (input$admin_level == "Grid") {
+        
         raster_layer <- switch(
           indic,
-          "Taux moyen de Paludisme"         = data_global$mean_raster,
-          "Taux de malaria chez les enfants"= {
-            # ex. ratio malaria_enfants / pop_enfants
+          "Taux moyen de Paludisme"          = data_global$mean_raster,
+          "Taux de malaria chez les enfants" = {
             if (is.null(data_global$raster_nombre_malaria_enfants) ||
                 is.null(data_global$raster_pop_enfants)) {
               NULL
@@ -103,7 +103,6 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
           "NDVI" = data_global$ndvi_raster,
           "NDBI" = data_global$ndbi_raster,
           "CDI"  = {
-            # ex. mult_raster / pop_resampled_binary
             if (is.null(data_global$mult_raster) ||
                 is.null(data_global$pop_resampled_binary)) {
               NULL
@@ -114,7 +113,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
           NULL
         )
         
-        req(raster_layer)  # On s'assure d'avoir un raster non NULL
+        req(raster_layer)
         pal_r <- colorNumeric("viridis",
                               domain   = range(values(raster_layer), na.rm = TRUE),
                               na.color = "transparent")
@@ -134,15 +133,15 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
         
       } else {
         # Mode agrégé (Région, Département ou Commune)
-        req(chosen_col)  # On s'assure d'avoir un nom de colonne valide
+        req(chosen_col)
         
-        # Sélection du sf correspondant au niveau choisi
         entity_data <- switch(
           input$admin_level,
           "Région"      = data_global$regions,
           "Département" = data_global$departments,
           "Commune"     = data_global$communes
         )
+        
         req(entity_data)
         
         # Vérification que la colonne existe dans entity_data
@@ -151,28 +150,25 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             "La colonne demandée n’existe pas dans les données de ce niveau administratif.",
             type = "error"
           )
-          # On peut retourner une carte vide pour éviter tout plantage
           return(leaflet() %>% addTiles())
         }
         
-        # Création d'une palette viridis
         pal <- colorNumeric("viridis",
                             domain   = range(entity_data[[chosen_col]], na.rm = TRUE),
                             na.color = "transparent")
         
-        # Nom affiché dans le popup/label
+        # Nom de la colonne d'étiquetage
         name_col <- switch(
           input$admin_level,
-          "Région"      = "ADM1_FR",
-          "Département" = "ADM2_FR",
-          "Commune"     = "ADM3_FR"
+          "Région"      = "ADM1_FR",  # Changer selon vos shapefiles
+          "Département" = "ADM2_FR",  # Changer si besoin
+          "Commune"     = "ADM3_FR"   # Changer si besoin
         )
         
-        # Construction de la carte
         leaflet(entity_data) %>%
           addTiles() %>%
           addPolygons(
-            fillColor       = ~pal(get(chosen_col)),
+            fillColor       = ~ pal(get(chosen_col)),
             fillOpacity     = 0.7,
             color           = "white",
             weight          = 2,
@@ -220,26 +216,27 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
       )
     })
     
-    # Rendu de la carte en mode plein écran (même logique)
+    # Rendu de la carte en mode plein écran
     output$map_full <- renderLeaflet({
       req(data_reac()$indicator_chosen)
       
       indic <- data_reac()$indicator_chosen
       chosen_col <- switch(
         indic,
-        "Taux moyen de Paludisme"        = "mean_index",
-        "Taux de malaria chez les enfants" = "taux_malaria_enfants",
-        "NDVI" = "mean_ndvi",
-        "NDBI" = "mean_ndbi",
-        "CDI"  = "CDI",
+        "Taux moyen de Paludisme"             = "mean_index",
+        "Taux de malaria chez les enfants"    = "taux_malaria_enfants",
+        "NDVI"                                = "mean_ndvi",
+        "NDBI"                                = "mean_ndbi",
+        "CDI"                                 = "CDI",
         NULL
       )
       
       if (input$admin_level == "Grid") {
+        
         raster_layer <- switch(
           indic,
-          "Taux moyen de Paludisme"         = data_global$mean_raster,
-          "Taux de malaria chez les enfants"= {
+          "Taux moyen de Paludisme"          = data_global$mean_raster,
+          "Taux de malaria chez les enfants" = {
             if (is.null(data_global$raster_nombre_malaria_enfants) ||
                 is.null(data_global$raster_pop_enfants)) {
               NULL
@@ -259,6 +256,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
           },
           NULL
         )
+        
         req(raster_layer)
         pal_r <- colorNumeric("viridis",
                               domain   = range(values(raster_layer), na.rm = TRUE),
@@ -266,7 +264,11 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
         
         leaflet() %>%
           addTiles() %>%
-          addRasterImage(raster_layer, colors = pal_r, opacity = 0.8) %>%
+          addRasterImage(
+            raster_layer, 
+            colors = pal_r,
+            opacity = 0.8
+          ) %>%
           addLegend(
             pal    = pal_r,
             values = values(raster_layer),
@@ -275,12 +277,14 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
         
       } else {
         req(chosen_col)
+        
         entity_data <- switch(
           input$admin_level,
           "Région"      = data_global$regions,
           "Département" = data_global$departments,
           "Commune"     = data_global$communes
         )
+        
         req(entity_data)
         
         if (! chosen_col %in% names(entity_data)) {
@@ -294,6 +298,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
         pal <- colorNumeric("viridis",
                             domain   = range(entity_data[[chosen_col]], na.rm = TRUE),
                             na.color = "transparent")
+        
         name_col <- switch(
           input$admin_level,
           "Région"      = "ADM1_FR",
@@ -316,7 +321,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             ),
             label = ~paste0(
               input$admin_level, " : ", get(name_col),
-              " ; ", indic, " : ", round(get(chosen_col), 3)
+              " ; ", indic, " = ", round(get(chosen_col), 3)
             ),
             labelOptions = labelOptions(
               style = list(
