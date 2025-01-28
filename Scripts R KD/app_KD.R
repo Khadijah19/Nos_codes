@@ -17,7 +17,7 @@ source("mod_notes_techniques_page_KD.R")   # Notes Techniques
 
 # 2) Définition de l'UI : on utilise navbarPage
 ui <- navbarPage(
-  title = "Portail Santé-Sécurité-Environnement",
+  title = "",
   id    = "main_navbar",
   windowTitle = "Mon Application SSE",  # Ce titre apparaîtra dans l'onglet du navigateur
   

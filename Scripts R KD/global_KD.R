@@ -16,7 +16,7 @@ library(viridis)
 
 # 2) Définition des indicateurs par pays
 fake_indicators <- list(
-  "Senegal" = c("Taux moyen de Paludisme", "Taux de malaria chez les enfants","CDI", "NDVI", "NDBI"),
+  "Senegal" = c("Taux moyen de Paludisme", "Taux de malaria chez les enfants", "CDI", "NDVI", "NDBI"),
   "Burkina" = c("Taux moyen de Paludisme", "Taux de malaria chez les enfants", "CDI", "NDVI", "NDBI")
 )
 
@@ -39,6 +39,15 @@ shapefiles <- list(
 
 # 5) Fonction pour charger les données pour un pays donné
 charger_donnees_pays <- function(pays) {
+  # Vérification de l'existence des shapefiles
+  required_shapefiles <- shapefiles[[pays]]
+  missing_shapefiles <- required_shapefiles[!file.exists(unlist(required_shapefiles))]
+  
+  if (length(missing_shapefiles) > 0) {
+    stop("Erreur : Les shapefiles suivants manquent pour le pays ", pays, " : ", 
+         paste(names(missing_shapefiles), collapse = ", "))
+  }
+  
   # Chargement des shapefiles
   regions <- st_read(shapefiles[[pays]]$regions, quiet = TRUE)
   departments <- st_read(shapefiles[[pays]]$departments, quiet = TRUE)
@@ -46,14 +55,34 @@ charger_donnees_pays <- function(pays) {
   
   # Chargement des rasters
   raster_path <- file.path(chemin, pays, "Rasters")
-  mean_raster <- raster(file.path(raster_path, "malaria/mean_raster.tif"))
   
-  raster_nombre_malaria_enfants <- raster(file.path(raster_path, "malaria_enfants/raster_nombre_malaria_enfants.tif"))
-  raster_pop_enfants <- raster(file.path(raster_path, "malaria_enfants/raster_pop_enfants.tif"))
-  ndvi_raster <- raster(file.path(raster_path, paste0("Indices_spectraux/NDVI_", pays, ".tif")))
-  ndbi_raster <- raster(file.path(raster_path, paste0("Indices_spectraux/NDBI_", pays, ".tif")))
-  pop_resampled_binary <- raster(file.path(raster_path, "CDI/pop_resampled_binary.tif"))
-  mult_raster <- raster(file.path(raster_path, "CDI/mult_raster.tif"))
+  # Définition des chemins des rasters
+  raster_files <- list(
+    mean_raster = file.path(raster_path, "malaria/mean_raster.tif"),
+    raster_nombre_malaria_enfants = file.path(raster_path, "malaria_enfants/raster_nombre_malaria_enfants.tif"),
+    raster_pop_enfants = file.path(raster_path, "malaria_enfants/raster_pop_enfants.tif"),
+    ndvi_raster = file.path(raster_path, paste0("Indices_spectraux/NDVI_", pays, ".tif")),
+    ndbi_raster = file.path(raster_path, paste0("Indices_spectraux/NDBI_", pays, ".tif")),
+    pop_resampled_binary = file.path(raster_path, "CDI/pop_resampled_binary.tif"),
+    mult_raster = file.path(raster_path, "CDI/mult_raster.tif")
+  )
+  
+  # Vérification de l'existence des rasters
+  missing_rasters <- raster_files[!file.exists(unlist(raster_files))]
+  
+  if (length(missing_rasters) > 0) {
+    stop("Erreur : Les fichiers rasters suivants manquent pour le pays ", pays, " : ", 
+         paste(names(missing_rasters), collapse = ", "))
+  }
+  
+  # Chargement des rasters
+  mean_raster <- raster(raster_files$mean_raster)
+  raster_nombre_malaria_enfants <- raster(raster_files$raster_nombre_malaria_enfants)
+  raster_pop_enfants <- raster(raster_files$raster_pop_enfants)
+  ndvi_raster <- raster(raster_files$ndvi_raster)
+  ndbi_raster <- raster(raster_files$ndbi_raster)
+  pop_resampled_binary <- raster(raster_files$pop_resampled_binary)
+  mult_raster <- raster(raster_files$mult_raster)
   
   list(
     regions = regions,
@@ -70,12 +99,8 @@ charger_donnees_pays <- function(pays) {
 }
 
 # 6) Calculs par niveau administratif
-#    (Dans ce cas-ci, on suppose que les indicateurs sont déjà inclus ou calculés ailleurs.
-#     Vous pouvez adapter si vous souhaitez calculer dynamiquement dans ce script.)
+#    (Les indicateurs sont supposés déjà calculés et inclus dans les shapefiles optimisés)
 calculer_indicateurs <- function(donnees) {
-  # Les calculs sont supposés déjà faits et inclus dans les shapefiles optimisés.
-  # On renvoie simplement les données pour compatibilité.
-  
   list(
     regions = donnees$regions,
     departments = donnees$departments,
@@ -119,6 +144,18 @@ update_data_global <- function(pays) {
   data_global$ndbi_raster <- resultats$ndbi_raster
   data_global$pop_resampled_binary <- resultats$pop_resampled_binary
   data_global$mult_raster <- resultats$mult_raster
+  data_global$departments$mean_index <- data_global$departments$men_ndx
+  data_global$departments$mean_ndvi <- data_global$departments$men_ndv
+  data_global$departments$mean_ndbi <- data_global$departments$men_ndb
+  data_global$departments$taux_malaria_enfants <- data_global$departments$tx_mlr_
+  data_global$regions$mean_index <- data_global$regions$men_ndx
+  data_global$regions$mean_ndvi <- data_global$regions$men_ndv
+  data_global$regions$mean_ndbi <- data_global$regions$men_ndb
+  data_global$regions$taux_malaria_enfants <- data_global$regions$tx_mlr_
+  data_global$communes$mean_index <- data_global$communes$men_ndx
+  data_global$communes$mean_ndvi <- data_global$communes$men_ndv
+  data_global$communes$mean_ndbi <- data_global$communes$men_ndb
+  data_global$communes$taux_malaria_enfants <- data_global$communes$tx_mlr_
   
   message("✅ Données mises à jour pour le pays : ", pays)
 }
