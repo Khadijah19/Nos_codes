@@ -64,34 +64,35 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
     output$map <- renderLeaflet({
       req(data_reac()$indicator_chosen)
       
-      # Sélection de la colonne selon l'indicateur
       chosen_col <- switch(
         data_reac()$indicator_chosen,
         "Taux moyen de Paludisme" = "mean_index",
         "Taux de malaria chez les enfants" = "taux_malaria_enfants",
         "NDVI" = "mean_ndvi",
+        "NDBI" = "mean_ndbi",
+        "CDI" = "CDI",  # Nouvelle entrée pour l'indicateur CDI
         NULL
       )
-      req(chosen_col)  # Assurez-vous qu'une colonne valide est sélectionnée
+      req(chosen_col)
       
       if (input$admin_level == "Grid") {
-        # Récupération du raster en fonction de l'indicateur
         raster_layer <- switch(
           data_reac()$indicator_chosen,
           "Taux moyen de Paludisme" = data_global$mean_raster,
           "Taux de malaria chez les enfants" = data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants,
           "NDVI" = data_global$ndvi_raster,
+          "NDBI" = data_global$ndbi_raster,
+          "CDI" = data_global$mult_raster/data_global$pop_resampled_binary,
           NULL
         )
         
-        req(raster_layer)  # Vérifiez que le raster est valide
+        req(raster_layer)
         
-        # Création de la carte avec le raster
         leaflet() %>%
           addTiles() %>%
           addRasterImage(
             raster_layer,
-            colors = colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE)),
+            colors = colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE), na.color = "transparent"),
             opacity = 0.8
           ) %>%
           addLegend(
@@ -100,19 +101,18 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             title = "Valeur des Pixels"
           )
       } else {
-        # Récupération des entités administratives (Régions, Départements, Communes)
         entity_data <- switch(
           input$admin_level,
           "Région" = data_global$regions,
           "Département" = data_global$departments,
           "Commune" = data_global$communes
         )
+        req(entity_data)
         
-        req(entity_data)  # Vérifiez que les données sont valides
+        # Palette de couleurs avec NA transparents
+        pal <- colorNumeric("viridis", domain = range(entity_data[[chosen_col]], na.rm = TRUE), na.color = "transparent")
         
-        # Création de la carte avec les entités administratives
-        pal <- colorNumeric("viridis", domain = range(entity_data[[chosen_col]], na.rm = TRUE))
-        
+        # Carte Leaflet avec mise en surbrillance et infobulle
         leaflet(entity_data) %>%
           addTiles() %>%
           addPolygons(
@@ -120,10 +120,31 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             fillOpacity = 0.7,
             color = "white",
             weight = 2,
-            popup = ~paste0(input$admin_level, " : ", 
-                            if (input$admin_level == "Région") ADM1_FR else 
-                              if (input$admin_level == "Département") ADM2_FR else ADM3_FR,
-                            "<br>Valeur : ", round(entity_data[[chosen_col]], 3))
+            highlightOptions = highlightOptions(  # Surbrillance
+              weight = 3,
+              color = "#666",
+              fillOpacity = 0.9,
+              bringToFront = TRUE
+            ),
+            label = ~paste0(  # Infobulle
+               input$admin_level, " ", 
+              if (input$admin_level == "Région") ADM1_FR else 
+                if (input$admin_level == "Département") ADM2_FR else ADM3_FR,
+              " ; ", data_reac()$indicator_chosen, " : ",
+              round(entity_data[[chosen_col]], 3)
+            ),
+            labelOptions = labelOptions(  # Style de l'infobulle
+              style = list(
+                "font-weight" = "bold",
+                "color" = "#666",
+                "background-color" = "rgba(255,255,255,0.8)",
+                "border" = "1px solid #ccc",
+                "border-radius" = "4px",
+                "padding" = "4px"
+              ),
+              textsize = "13px",
+              direction = "auto"
+            )
           ) %>%
           addLegend(
             "bottomright",
@@ -145,37 +166,38 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
     })
     
     # Rendu de la carte en mode plein écran (même logique)
-    output$map_full <- renderLeaflet(({
+    output$map_full <- renderLeaflet({
       req(data_reac()$indicator_chosen)
       
-      # Sélection de la colonne selon l'indicateur
       chosen_col <- switch(
         data_reac()$indicator_chosen,
         "Taux moyen de Paludisme" = "mean_index",
         "Taux de malaria chez les enfants" = "taux_malaria_enfants",
         "NDVI" = "mean_ndvi",
+        "NDBI" = "mean_ndbi",
+        "CDI" = "CDI",  # Nouvelle entrée pour l'indicateur CDI
         NULL
       )
-      req(chosen_col)  # Assurez-vous qu'une colonne valide est sélectionnée
+      req(chosen_col)
       
       if (input$admin_level == "Grid") {
-        # Récupération du raster en fonction de l'indicateur
         raster_layer <- switch(
           data_reac()$indicator_chosen,
           "Taux moyen de Paludisme" = data_global$mean_raster,
           "Taux de malaria chez les enfants" = data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants,
           "NDVI" = data_global$ndvi_raster,
+          "NDBI" = data_global$ndbi_raster,
+          "CDI" = data_global$mult_raster/data_global$pop_resampled_binary,
           NULL
         )
         
-        req(raster_layer)  # Vérifiez que le raster est valide
+        req(raster_layer)
         
-        # Création de la carte avec le raster
         leaflet() %>%
           addTiles() %>%
           addRasterImage(
             raster_layer,
-            colors = colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE)),
+            colors = colorNumeric("viridis", domain = range(values(raster_layer), na.rm = TRUE), na.color = "transparent"),
             opacity = 0.8
           ) %>%
           addLegend(
@@ -184,19 +206,18 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             title = "Valeur des Pixels"
           )
       } else {
-        # Récupération des entités administratives (Régions, Départements, Communes)
         entity_data <- switch(
           input$admin_level,
           "Région" = data_global$regions,
           "Département" = data_global$departments,
           "Commune" = data_global$communes
         )
+        req(entity_data)
         
-        req(entity_data)  # Vérifiez que les données sont valides
+        # Palette de couleurs avec NA transparents
+        pal <- colorNumeric("viridis", domain = range(entity_data[[chosen_col]], na.rm = TRUE), na.color = "transparent")
         
-        # Création de la carte avec les entités administratives
-        pal <- colorNumeric("viridis", domain = range(entity_data[[chosen_col]], na.rm = TRUE))
-        
+        # Carte Leaflet avec mise en surbrillance et infobulle
         leaflet(entity_data) %>%
           addTiles() %>%
           addPolygons(
@@ -204,10 +225,31 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             fillOpacity = 0.7,
             color = "white",
             weight = 2,
-            popup = ~paste0(input$admin_level, " : ", 
-                            if (input$admin_level == "Région") ADM1_FR else 
-                              if (input$admin_level == "Département") ADM2_FR else ADM3_FR,
-                            "<br>Valeur : ", round(entity_data[[chosen_col]], 3))
+            highlightOptions = highlightOptions(  # Surbrillance
+              weight = 3,
+              color = "#666",
+              fillOpacity = 0.9,
+              bringToFront = TRUE
+            ),
+            label = ~paste0(  # Infobulle
+               input$admin_level, " : ", 
+              if (input$admin_level == "Région") ADM1_FR else 
+                if (input$admin_level == "Département") ADM2_FR else ADM3_FR,
+              " ; ", data_reac()$indicator_chosen, " : ",
+              round(entity_data[[chosen_col]], 3)
+            ),
+            labelOptions = labelOptions(  # Style de l'infobulle
+              style = list(
+                "font-weight" = "bold",
+                "color" = "#666",
+                "background-color" = "rgba(255,255,255,0.8)",
+                "border" = "1px solid #ccc",
+                "border-radius" = "4px",
+                "padding" = "4px"
+              ),
+              textsize = "13px",
+              direction = "auto"
+            )
           ) %>%
           addLegend(
             "bottomright",
@@ -216,7 +258,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
             title = paste(data_reac()$indicator_chosen, "(", input$admin_level, ")")
           )
       }
-    }))
+    })
     
     
   })

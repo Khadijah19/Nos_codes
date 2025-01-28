@@ -61,7 +61,16 @@ mod_indicator_page_server <- function(id, landing_inputs) {
           p("Le NDVI (Normalized Difference Vegetation Index) est un indicateur qui mesure la végétation. "),
           p("Il varie entre -1 et 1, où des valeurs proches de 1 indiquent une végétation dense, et des valeurs proches de 0 indiquent des zones arides.")
         )
-      } else {
+      }else if (indic == "NDBI") {
+        tagList(
+          p("Le NDBI (Normalized Difference Built-up Index) est un indicateur qui mesure la végétation. "),
+          p("Il varie entre -1 et 1, où des valeurs proches de 1 indiquent une végétation dense, et des valeurs proches de 0 indiquent des zones arides.")
+        )
+      }else if (indic == "CDI") {
+        tagList(
+          p("CDIIIII")
+        )  
+      }else {
         tagList(p("Indicateur non documenté."))
       }
     })
