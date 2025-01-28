@@ -122,7 +122,6 @@ update_data_global <- function(pays) {
   data_global$ndbi_raster <- donnees$ndbi_raster
   data_global$pop_resampled_binary <- donnees$pop_resampled_binary
   data_global$mult_raster <- donnees$mult_raster
-  
+  View()
   message("✅ Données mises à jour pour le pays : ", pays)
 }
-

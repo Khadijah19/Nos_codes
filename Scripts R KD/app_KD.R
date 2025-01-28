@@ -84,10 +84,10 @@ server <- function(input, output, session) {
   indicator_chosen_ <- mod_indicator_page_server("indicator_page", landing_vals)
   
   # 3.3) Carte
-  mod_map_page_server("map_page", landing_vals, indicator_chosen_)
+  mod_map_page_server("map_page", landing_inputs =  landing_vals, indicator_chosen_)
   
   # 3.4) State filter
-  mod_state_filter_page_server("state_filter_page", landing_vals, indicator_chosen_)
+  mod_state_filter_page_server("state_filter_page", landing_inputs = landing_vals, indicator_chosen_)
   
   # 3.5) Pages statiques
   mod_about_page_server("about_page")
