@@ -20,7 +20,7 @@ fake_indicators <- list(
   "Burkina" = c("Taux moyen de Paludisme", "Taux de malaria chez les enfants", "CDI", "NDVI", "NDBI")
 )
 # 3) Définition du chemin commun pour les fichiers RDS
-chemin <- "C:/Users/HP/OneDrive/Documents/GitHub/Projet_Final_Stat_Spatiale/data"
+chemin <- "../data"
 
 
 # 4) Définition des fichiers RDS par pays
@@ -37,10 +37,6 @@ rds_files <- list(
   )
 )
 
-<<<<<<< HEAD
-chemin_base <- "../data"
-=======
->>>>>>> a827ae95ad0f083ec7c6ca19aec9c335901993a9
 
 # 4) Fonction pour charger les données pour un pays donné
 charger_donnees_pays <- function(pays) {
