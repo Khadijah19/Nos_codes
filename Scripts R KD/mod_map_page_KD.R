@@ -82,6 +82,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
           "Taux de malaria chez les enfants" = data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants,
           "NDVI" = data_global$ndvi_raster,
           "NDBI" = data_global$ndbi_raster,
+          "CDI" = data_global$mult_raster/data_global$pop_resampled_binary,
           NULL
         )
         
@@ -186,6 +187,7 @@ mod_map_page_server <- function(id, landing_inputs, indicator_chosen_) {
           "Taux de malaria chez les enfants" = data_global$raster_nombre_malaria_enfants / data_global$raster_pop_enfants,
           "NDVI" = data_global$ndvi_raster,
           "NDBI" = data_global$ndbi_raster,
+          "CDI" = data_global$mult_raster/data_global$pop_resampled_binary,
           NULL
         )
         
