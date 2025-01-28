@@ -18,8 +18,6 @@ mod_about_page_ui <- function(id) {
         tags$hr(),
         tags$h3("Méthodes", class = "text-secondary"),
         tags$p("Les résultats sont issus d'une modélisation standard pour estimer des cartes à haute résolution. Notez que des écarts peuvent exister par rapport aux mesures agrégées publiées ailleurs."),
-        tags$p("Pour plus de détails, consultez la section : ",
-               tags$a("#Notes techniques#", href = "#", class = "text-info")),
         tags$hr(),
         tags$h3("Avertissement", class = "text-danger"),
         tags$p("Cette application a été développée dans un cadre académique. La représentation des frontières politiques ne reflète aucune position officielle. Les erreurs éventuelles n'engagent ni l'Ecole nationale de la Statistique et de l’Analyse économique Pierre NDIAYE (ENSAE), ni l'Agence nationale de la Statistique et de la Démographie (ANSD)."),
@@ -35,16 +33,20 @@ mod_about_page_ui <- function(id) {
         tags$h3("Références webographiques", class = "text-muted"),
         tags$ul(
           tags$li(tags$a("ACLED (Armed Conflict Location and Event Data)", href = "https://acleddata.com", target = "_blank")),
-          tags$li(tags$a("CRAN: Package malariaAtlas", href = "https://cran.r-project.org", target = "_blank")),
-          tags$li(tags$a("Malaria Atlas Project | Home", href = "https://malariaatlas.org", target = "_blank")),
-          tags$li(tags$a("Malaria Journal - Estimated distribution of malaria cases among children", href = "https://malariajournal.biomedcentral.com", target = "_blank")),
-          tags$li(tags$a("NDMI: Vegetation Index Equation And Values Interpretation", href = "https://www.example.com", target = "_blank")),
-          tags$li(tags$a("NDVI et PRI - METER Group", href = "https://www.metergroup.com", target = "_blank")),
-          tags$li(tags$a("Statistique-Exploratoire-Spatiale/TP10", href = "https://github.com/Abson-dev/Statistique-Exploratoire-Spatiale", target = "_blank"))
+          tags$li(tags$a("CRAN: Package malariaAtlas", href = "https://cran.r-project.org/web/packages/malariaAtlas/index.html", target = "_blank")),
+          tags$li(tags$a("Malaria Atlas Project | Home", href = "https://malariaatlas.org/", target = "_blank")),
+          tags$li(tags$a("Malaria Journal - Estimated distribution of malaria cases among children", href = "https://malariajournal.biomedcentral.com/articles/10.1186/s12936-023-04811-z", target = "_blank")),
+          tags$li(tags$a("NDBI—ArcGIS Pro | Documentation", href = "https://pro.arcgis.com/en/pro-app/latest/arcpy/spatial-analyst/ndbi.htm", target = "_blank")),
+          tags$li(tags$a("NDVI et PRI - METER Group", href = "https://metergroup.com/fr/education-guides/ndvi-and-pri-the-researchers-complete-guide/", target = "_blank")),
+          tags$li(tags$a("TP4", href = "https://github.com/Abson-dev/Statistique-Exploratoire-Spatiale/tree/main/TP4", target = "_blank")),          
+          tags$li(tags$a("TP5", href = "https://github.com/Abson-dev/Statistique-Exploratoire-Spatiale/tree/main/TP5", target = "_blank")),
+          tags$li(tags$a("TP6", href = "https://github.com/Abson-dev/Statistique-Exploratoire-Spatiale/tree/main/TP6", target = "_blank")),
+          tags$li(tags$a("TP10", href = "https://github.com/Abson-dev/Statistique-Exploratoire-Spatiale/tree/main/TP10", target = "_blank"))
+          
         ),
         tags$hr(),
         tags$h3("Contributeurs", class = "text-primary"),
-        tags$p("Ce portail a été développé par les étudiants de la 3e génération d’ISEP, en ISE1 cycle long, pour l’année académique 2024/2025 à l’Ecole nationale de la Statistique et de l’Analyse économique Pierre Ndiaye (ENSAE).", class = "text-secondary text-center"),
+        tags$p("Ce portail a été développé par les étudiants de la 3e génération d’ISEP, en ISE1 cycle long, pour l’année académique 2024/2025 à l’Ecole nationale de la Statistique et de l’Analyse économique Pierre Ndiaye (ENSAE).", class = "text-secondary"),
         tags$ul(
           tags$li("Alioune Abdou Salam KANE"),
           tags$li("Khadidiatou DIAKHATE"),
