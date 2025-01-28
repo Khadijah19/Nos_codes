@@ -277,8 +277,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       req(input$region, validate_chosen_col())
       df <- deps_filtered()
       ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]], group = 1)) +
-        geom_line(color = "blue") +
-        geom_point(color = "blue", size = 2) +
+        geom_bar(stat = "identity", fill = "skyblue", color = "black") +
         theme_minimal() +
         labs(title = "Taux par Département", x = "Département", y = "Valeur") +
         theme(panel.background = element_rect(fill = "white", color = NA),
@@ -290,8 +289,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       req(input$region, validate_chosen_col())
       df <- coms_filtered()
       ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]], group = 1)) +
-        geom_line(color = "red") +
-        geom_point(color = "red", size = 2) +
+        geom_bar(stat = "identity", fill = "skyblue", color = "black")+
         theme_minimal() +
         labs(title = "Taux par Commune", x = "Commune", y = "Valeur") +
         theme(panel.background = element_rect(fill = "white", color = NA),
@@ -307,8 +305,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       content = function(file) {
         df <- deps_filtered()
         p <- ggplot(df, aes(x = ADM2_FR, y = .data[[chosen_col()]])) +
-          geom_line(color = "blue") +
-          geom_point(color = "blue") +
+          geom_bar(stat = "identity", fill = "skyblue", color = "black")+
           theme_minimal() +
           labs(title = "Graphique par Département", x = "Département", y = "Valeur")
         
@@ -323,8 +320,7 @@ mod_state_filter_page_server <- function(id, landing_inputs, indicator_chosen_) 
       content = function(file) {
         df <- coms_filtered()
         p <- ggplot(df, aes(x = ADM3_FR, y = .data[[chosen_col()]])) +
-          geom_line(color = "red") +
-          geom_point(color = "red") +
+          geom_bar(stat = "identity", fill = "skyblue", color = "black") +
           theme_minimal() +
           labs(title = "Graphique par Commune", x = "Commune", y = "Valeur")
         

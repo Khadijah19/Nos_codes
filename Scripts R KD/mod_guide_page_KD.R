@@ -36,7 +36,9 @@ mod_guide_page_ui <- function(id) {
                 tags$li(tags$span(style = "font-weight: bold;", "Ajustez le curseur:"),
                         " Affinez les résultats en fonction d’un seuil particulier."),
                 tags$li(tags$span(style = "font-weight: bold;", "Téléchargement des Données:"),
-                        " Cliquez sur le bouton Télécharger situé en dessous de la carte ou au-dessus du tableau pour récupérer les données.")
+                        " Cliquez sur le bouton Télécharger situé en dessous de la carte ou au-dessus du tableau pour récupérer les données."),
+                tags$a("Lien vers la vidéo de démonstration", href = "Lien.html", target = "_blank")
+                
               )
             ),
             div(
