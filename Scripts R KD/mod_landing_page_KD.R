@@ -30,7 +30,7 @@ mod_landing_page_ui <- function(id) {
     )),
     
     # Titre principal
-    titlePanel("Cartographie infranationale des indicateurs de santé et de développement infantiles et maternels dans certains pays"),
+    titlePanel("Portail interactif pour l'analyse des indicateurs sanitaires, sécuritaires et environnementaux infranationaux"),
     
     # Zone de texte sombre (description)
     div(

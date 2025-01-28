@@ -17,7 +17,7 @@ source("mod_notes_techniques_page_KD.R")   # Notes Techniques
 
 # 2) Définition de l'UI : on utilise navbarPage
 ui <- navbarPage(
-  title = "Application Santé & Dév",
+  title = "",
   id = "main_navbar",
   
   # --- Onglet 1 : HOME ---
