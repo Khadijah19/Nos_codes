@@ -10,7 +10,7 @@ mod_notes_techniques_page_ui <- function(id) {
     fluidRow(
       column(
         12,
-        tags$h2("Notes Techniques"),
+        tags$h2("Au delà des indicateurs"),
         tags$hr(),
         
         # Section 1 - Taux moyen de malaria entre 2000 et 2022

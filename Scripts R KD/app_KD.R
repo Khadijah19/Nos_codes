@@ -17,17 +17,24 @@ source("mod_notes_techniques_page_KD.R")   # Notes Techniques
 
 # 2) Définition de l'UI : on utilise navbarPage
 ui <- navbarPage(
-  title = "",
-  id = "main_navbar",
+  title = "Portail Santé-Sécurité-Environnement",
+  id    = "main_navbar",
+  windowTitle = "Mon Application SSE",  # Ce titre apparaîtra dans l'onglet du navigateur
+  
+  # Ajout du favicon dans la balise <head>
+  header = tagList(
+    tags$head(
+      # Favicon
+      tags$link(rel = "icon", type = "image/jpeg", href = "Famicon.jpeg")
+    )
+  ),
   
   # --- Onglet 1 : HOME ---
   tabPanel(
     title = "Home",
-    icon = icon("home"),
-    # Contenu de l’onglet Home : 
-    # On y place la logique de la "landing page" + les modules conditionnels.
+    icon  = icon("home"),
     fluidPage(
-      useShinyjs(),  # si vous en avez besoin
+      useShinyjs(),  
       
       # Module 1 : Landing page (toujours visible)
       mod_landing_page_ui("landing_page"),
@@ -55,21 +62,21 @@ ui <- navbarPage(
   # --- Onglet 2 : ABOUT ---
   tabPanel(
     title = "About",
-    icon = icon("info-circle"),
+    icon  = icon("info-circle"),
     mod_about_page_ui("about_page")
   ),
   
   # --- Onglet 3 : GUIDE ---
   tabPanel(
     title = "Guide",
-    icon = icon("book-open"),  # ou icon("question"), ou ce que vous voulez
+    icon  = icon("book-open"),
     mod_guide_page_ui("guide_page")
   ),
   
   # --- Onglet 4 : NOTES TECHNIQUES ---
   tabPanel(
     title = "Notes Techniques",
-    icon = icon("file-alt"),
+    icon  = icon("file-alt"),
     mod_notes_techniques_page_ui("notes_techniques_page")
   )
 )
@@ -94,7 +101,7 @@ server <- function(input, output, session) {
   mod_guide_page_server("guide_page")
   mod_notes_techniques_page_server("notes_techniques_page")
   
-  # 3.6) Synchronisation JS (optionnel, si nécessaire)
+  # 3.6) Synchronisation JS (optionnel)
   observe({
     chosen_bool <- tolower(as.character(indicator_chosen_()))
     runjs(sprintf("Shiny.setInputValue('%s', %s)", "indicator_chosen_", chosen_bool))

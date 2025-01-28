@@ -1,59 +1,101 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# mod_landing_page.R
-# Module 1 : Page d'accueil, liste déroulante (Sénégal), indicateurs
+# mod_landing_page_KD.R
+# Module 1 : Page d'accueil (Home), plus design
 # ─────────────────────────────────────────────────────────────────────────────
 
 mod_landing_page_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
-    tags$head(tags$style(
-      HTML("
+    # Ajout d’un style CSS plus riche
+    tags$head(
+      tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css?family=Open+Sans:400,600,700"),
+      tags$style(HTML("
         body {
-          background-color: #f2f2f2;
+          background: linear-gradient(135deg, #e0e0e0, #f7f7f7);
+          font-family: 'Open Sans', sans-serif;
+          margin: 0; padding: 0;
         }
-        .dark-box {
-          background-color: #666666;
+        .landing-container {
+          max-width: 1200px; 
+          margin: 30px auto; 
+          background-color: #ffffff;
+          border-radius: 10px;
+          box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
+          padding: 20px 30px;
+        }
+        .landing-title {
+          color: #333333; 
+          font-weight: 700;
+          margin-bottom: 20px;
+          text-align: center;
+          font-size: 28px;
+          position: relative;
+        }
+        .landing-title:hover {
+          color: #cc0000;
+          transition: color 0.5s;
+        }
+        .landing-description {
+          background-color: #666666; 
           color: white;
-          padding: 15px;
+          padding: 15px; 
           border-radius: 5px;
           margin-bottom: 20px;
+          font-size: 16px;
+          line-height: 1.6;
         }
-        .red-title-box {
-          background-color: #cc0000;
-          color: white;
-          padding: 10px;
-          border-radius: 5px;
-          font-weight: bold;
-          margin-bottom: 10px;
+        .select-input-label {
+          font-weight: 600;
+          margin-top: 10px;
         }
-      ")
-    )),
-    
-    # Titre principal
-    titlePanel("Portail interactif pour l'analyse des indicateurs sanitaires, sécuritaires et environnementaux infranationaux"),
-    
-    # Zone de texte sombre (description)
-    div(
-      class = "dark-box",
-      p("Cette application web présente un résumé des indicateurs de santé et de développement ",
-        "infantiles et maternels calculés au niveau infranational (zones géographiques situées ",
-        "sous le niveau national) pour une sélection de pays."),
-      p("Plusieurs indicateurs sont présentés sous forme de cartes, de graphiques et de tableaux, ",
-        "et pour plusieurs points dans le temps selon la disponibilité des données. Les changements ",
-        "au fil du temps pour chaque indicateur sont également présentés."),
-      p("Veuillez consulter le Guide et la section À propos pour plus d'informations sur la manière ",
-        "d'utiliser ce portail.")
+        .custom-select {
+          display: inline-block;
+          width: 300px;
+          padding: 8px;
+          border-radius: 4px;
+          border: 1px solid #ccc;
+          font-size: 14px;
+          margin-bottom: 20px;
+        }
+      "))
     ),
     
-    # Sélection du pays
-    selectInput(ns("country"), "Sélectionnez un pays :",
-                choices = c("", "Senegal", "Burkina"),
-                selected = ""),
-    
-    # Sélection de l'indicateur
-    conditionalPanel(
-      condition = sprintf("input['%s-country'] != ''", ns("")),
-      selectInput(ns("indicator_chosen"), "Sélectionnez un indicateur :", choices = NULL)
+    # Contenu principal
+    div(
+      class = "landing-container",
+      
+      # Titre principal
+      div(
+        class = "landing-title",
+        "Portail interactif pour l'analyse des indicateurs sanitaires, sécuritaires et environnementaux"
+      ),
+      
+      # Zone de texte sombre (description)
+      div(
+        class = "landing-description",
+        p("Bienvenue sur notre portail interactif, dédié à l'exploration et à l'analyse d'indicateurs ",
+          "clés en matière de santé, de sécurité et d'environnement. Que vous soyez chercheur, ",
+          "décideur ou simplement curieux, ce site vous permettra de visualiser des cartes, ",
+          "des graphiques et des tableaux synthétiques pour différents pays et pour plusieurs ",
+          "indicateurs pertinents. Profitez également de fonctionnalités avancées : filtres par ",
+          "niveau administratif, analyse par région et téléchargement de données."),
+        p("Pour commencer, sélectionnez ci-dessous un pays, puis un indicateur. ",
+          "Consultez ensuite nos sections 'Guide' et 'Notes Techniques' pour en savoir plus ",
+          "sur l'utilisation et la méthodologie.")
+      ),
+      
+      # Sélection du pays
+      tags$label("Sélectionnez un pays :", class = "select-input-label"),
+      selectInput(ns("country"), NULL,
+                  choices = c("", "Senegal", "Burkina"),
+                  selected = "", width = "300px"),
+      
+      # Sélection de l'indicateur (apparait seulement si pays choisi)
+      conditionalPanel(
+        condition = sprintf("input['%s-country'] != ''", ns("")),
+        tags$label("Sélectionnez un indicateur :", class = "select-input-label"),
+        selectInput(ns("indicator_chosen"), NULL, choices = NULL, width = "300px")
+      )
     )
   )
 }
@@ -66,10 +108,17 @@ mod_landing_page_server <- function(id) {
       req(input$country)
       country_selected <- input$country
       indics <- fake_indicators[[country_selected]]
-      updateSelectInput(session, "indicator_chosen", choices = c("", indics), selected = "")
+      updateSelectInput(session, "indicator_chosen", 
+                        choices = c("", indics), 
+                        selected = "")
+      
+      # Mettre à jour les données globales
+      if (country_selected != "") {
+        update_data_global(country_selected)
+      }
     })
     
-    # Retourne le pays et l'indicateur sélectionné
+    # Retourne le pays et l'indicateur
     return(
       reactive({
         list(

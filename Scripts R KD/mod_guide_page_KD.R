@@ -1,53 +1,105 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# mod_guide_page.R
+# mod_guide_page_KD.R
 # Page "Guide"
 # ─────────────────────────────────────────────────────────────────────────────
+
 mod_guide_page_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
-    tags$style(HTML(
-      "body { background-color: #f8f9fa; } \n
-       h2 { color: #007bff; } \n
-       .content-box { background-color: #ffffff; border-radius: 15px; padding: 20px; box-shadow: 1px 4px 6px rgba(0, 0, 0, 0.1); } \n
-       .text-section { float: left; width: 50%; padding-right: 20px; } \n
-       .screenshot-section { float: right; width: 50%; text-align: center; } \n
-       .screenshot { margin: 10px auto; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); }"
-    )),
+    tags$head(tags$style(HTML("
+      .red-title-box {
+        background-color: #cc0000;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 24px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .guide-container {
+        background-color: #fefefe;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 30px;
+      }
+      .guide-text {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #333;
+      }
+      .guide-images {
+        margin-top: 20px;
+      }
+      .guide-image-box {
+        margin-bottom: 15px;
+        text-align: center;
+      }
+      .guide-image {
+        max-width: 100%;
+        border-radius: 8px;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.15);
+      }
+    "))),
+    
+    # Titre rouge centré
+    div(class = "red-title-box", "Guide d'Utilisation"),
+    
+    # Partie principale : 2 colonnes : texte à gauche, images à droite
     fluidRow(
       column(
-        12,
-        div(class = "content-box",
-            tags$h2("Guide d'Utilisation"),
-            div(
-              class = "text-section",
-              tags$ol(
-                tags$li(tags$span(style = "font-weight: bold;", "Sélectionner un pays et un Indicateur:"),
-                        " Choisissez un pays et un indicateur à afficher. La carte par défaut montre les valeurs au niveau national."),
-                tags$li(tags$span(style = "font-weight: bold;", "Navigation sur la Carte:"),
-                        " Utilisez les boutons zoom avant (+) ou zoom arrière (-) pour ajuster la vue."),
-                tags$li(tags$span(style = "font-weight: bold;", "Définition de l'Indicateur:"),
-                        " Une brève définition de l’indicateur calculé. Plus de détails sont disponibles dans la section Notes techniques, qui explique la 'Probabilité de Dépassement et la Confiance dans les Changements au Fil du Temps.'"),
-                tags$li(tags$span(style = "font-weight: bold;", "Détails sur la carte:"),
-                        " Explorez les détails supplémentaires fournis sur la carte."),
-                tags$li(tags$span(style = "font-weight: bold;", "Filtrage par Changement:"),
-                        " Ajustez les paramètres pour mettre en évidence l'indicateur à un niveau administratif."),
-                tags$li(tags$span(style = "font-weight: bold;", "Highlight une région:"),
-                        " Mettez en valeur une région spécifique pour des analyses ciblées."),
-                tags$li(tags$span(style = "font-weight: bold;", "Ajustez le curseur:"),
-                        " Affinez les résultats en fonction d’un seuil particulier."),
-                tags$li(tags$span(style = "font-weight: bold;", "Téléchargement des Données:"),
-                        " Cliquez sur le bouton Télécharger situé en dessous de la carte ou au-dessus du tableau pour récupérer les données."),
-                tags$a("Lien vers la vidéo de démonstration", href = "Lien.html", target = "_blank")
-                
-              )
+        width = 7,
+        div(
+          class = "guide-container",
+          div(
+            class = "guide-text",
+            tags$h3("Comment naviguer dans l'application ?"),
+            tags$ol(
+              tags$li("Choisissez d'abord un pays et un indicateur dans la page Home."),
+              tags$li("La carte s'actualise automatiquement selon le niveau administratif sélectionné (Région, Département, Commune ou Grid)."),
+              tags$li("Vous pouvez consulter les statistiques détaillées dans l'onglet 'Analyse par Région' (résumé, tableaux, graphiques)."),
+              tags$li("Un filtre par quartiles est disponible pour affiner l'affichage."),
+              tags$li("Tous les tableaux et graphiques sont téléchargeables (boutons CSV / PNG).")
             ),
-            div(
-              class = "screenshot-section",
-              tags$img(src = "LOGO1.JPEG", class = "screenshot", width = "90%", alt = "Screenshot 1"),
-              tags$img(src = "LOGO2.JPEG", class = "screenshot", width = "90%", alt = "Screenshot 2"),
-              tags$img(src = "LOGO3.JPEG", class = "screenshot", width = "90%", alt = "Screenshot 3")
-            ),
-            tags$div(style = "clear: both;") # Pour nettoyer le flottement
+            
+            tags$h3("Liens utiles"),
+            tags$ul(
+              tags$li(tags$a("Vidéo Démonstration (exemple)", href = "#", target = "_blank")),
+              tags$li(tags$a("Documentation OMS sur le Paludisme", href = "https://www.who.int/fr/health-topics/malaria", target = "_blank"))
+            )
+          )
+        )
+      ),
+      
+      column(
+        width = 5,
+        div(
+          class = "guide-container guide-images",
+          
+          # LOGO1
+          div(
+            class = "guide-image-box",
+            tags$img(src = "Images/LOGO1.jpeg",
+                     alt = "Logo 1",
+                     class = "guide-image")
+          ),
+          
+          # LOGO2
+          div(
+            class = "guide-image-box",
+            tags$img(src = "Images/LOGO2.jpeg",
+                     alt = "Logo 2",
+                     class = "guide-image")
+          ),
+          
+          # LOGO3
+          div(
+            class = "guide-image-box",
+            tags$img(src = "Images/LOGO3.jpeg",
+                     alt = "Logo 3",
+                     class = "guide-image")
+          )
         )
       )
     )
@@ -55,5 +107,7 @@ mod_guide_page_ui <- function(id) {
 }
 
 mod_guide_page_server <- function(id) {
-  moduleServer(id, function(input, output, session) { })
+  moduleServer(id, function(input, output, session) {
+    # Page statique
+  })
 }
