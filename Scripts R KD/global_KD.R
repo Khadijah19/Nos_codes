@@ -20,7 +20,7 @@ fake_indicators <- list(
   "Burkina" = c("Taux moyen de Paludisme", "Taux de malaria chez les enfants", "CDI", "NDVI", "NDBI")
 )
 # 3) Définition du chemin commun pour les fichiers RDS
-chemin <- "../data"
+chemin_base <- "../data"
 
 
 # 4) Définition des fichiers RDS par pays
