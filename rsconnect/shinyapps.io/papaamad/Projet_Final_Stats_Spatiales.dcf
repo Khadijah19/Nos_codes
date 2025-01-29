@@ -1,0 +1,13 @@
+name: Projet_Final_Stats_Spatiales
+title: Projet_Final_Stats_Spatiales
+username: papaamad
+account: papaamad
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13843789
+bundleId: 9717760
+url: https://papaamad.shinyapps.io/Projet_Final_Stats_Spatiales/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|readme .txt

@@ -1,0 +1,12 @@
+name: believe
+title: believe
+username: khadijaatou
+account: khadijaatou
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13840536
+bundleId: 9718474
+url: https://khadijaatou.shinyapps.io/believe/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
